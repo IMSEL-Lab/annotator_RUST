@@ -1,6 +1,6 @@
-// P3-022: Zoom keeps overlay locked to image
-// Test: Zoom in/out and verify annotations scale properly
-// Expected: Annotations scale with image, no parallax
+// P3-013: Topmost selection when shapes overlap
+// Test: Click in overlapping region
+// Expected: Topmost annotation (last in list) becomes selected
 
 slint::include_modules!();
 use slint::Model;
@@ -12,13 +12,13 @@ fn main() -> Result<(), slint::PlatformError> {
     let image = slint::Image::load_from_path(&image_path).expect("Failed to load test image");
     ui.set_image_source(image);
 
-    // Create annotations with known sizes
+    // Create overlapping boxes - Box 2 is rendered on top of Box 1
     let annotations = std::rc::Rc::new(slint::VecModel::from(vec![
         Annotation {
             id: 1,
             r#type: "bbox".into(),
             x: 200.0,
-            y: 150.0,
+            y: 200.0,
             width: 300.0,
             height: 200.0,
             rotation: 0.0,
@@ -26,21 +26,11 @@ fn main() -> Result<(), slint::PlatformError> {
         },
         Annotation {
             id: 2,
-            r#type: "rbbox".into(),
-            x: 550.0,
-            y: 350.0,
-            width: 200.0,
-            height: 150.0,
-            rotation: 30.0,
-            selected: false,
-        },
-        Annotation {
-            id: 3,
-            r#type: "point".into(),
-            x: 400.0,
+            r#type: "bbox".into(),
+            x: 250.0,
             y: 250.0,
-            width: 0.0,
-            height: 0.0,
+            width: 300.0,
+            height: 200.0,
             rotation: 0.0,
             selected: false,
         },
@@ -55,7 +45,8 @@ fn main() -> Result<(), slint::PlatformError> {
             data.selected = i == index as usize;
             annotations_handle.set_row_data(i, data);
         }
-        println!("Selected annotation {}", index);
+        let selected = annotations_handle.row_data(index as usize).unwrap();
+        println!("✓ Annotation index {} (ID: {}) selected", index, selected.id);
     });
 
     let annotations_handle = annotations.clone();
@@ -68,18 +59,18 @@ fn main() -> Result<(), slint::PlatformError> {
                 annotations_handle.set_row_data(i, data);
             }
         }
+        println!("✓ All deselected");
     });
 
-    println!("=== P3-022: Zoom Alignment ===");
+    println!("=== P3-013: Overlapping Selection ===");
     println!("Instructions:");
-    println!("1. Use mouse wheel to zoom IN several steps");
-    println!("2. VERIFY: Annotations scale proportionally with the image");
-    println!("3. VERIFY: Annotations stay over the same image features");
-    println!("4. Zoom OUT several steps");
-    println!("5. VERIFY: No parallax or offset during zoom");
-    println!("6. CRITICAL: Test the rotated box (ID 2) - it should scale AND rotate correctly");
-    println!("7. The point should remain visible at all zoom levels");
-    println!("===============================");
+    println!("1. You should see two overlapping red rectangles");
+    println!("2. Click in the overlapping region (center-right area)");
+    println!("3. EXPECTED: Box 2 (the top/right box) should be selected");
+    println!("4. Click in the non-overlapping area of Box 1 (left side)");
+    println!("5. EXPECTED: Box 1 should be selected");
+    println!("6. Verify consistent behavior across multiple clicks");
+    println!("======================================");
 
     ui.run()
 }
