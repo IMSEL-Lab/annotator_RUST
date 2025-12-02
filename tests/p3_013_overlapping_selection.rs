@@ -54,7 +54,10 @@ fn main() -> Result<(), slint::PlatformError> {
             annotations_handle.set_row_data(i, data);
         }
         let selected = annotations_handle.row_data(index as usize).unwrap();
-        println!("✓ Annotation index {} (ID: {}) selected", index, selected.id);
+        println!(
+            "✓ Annotation index {} (ID: {}) selected",
+            index, selected.id
+        );
     });
 
     let annotations_handle = annotations.clone();

@@ -43,7 +43,7 @@ struct DrawState {
     start_x: f32,
     start_y: f32,
     next_id: i32,
-    polygon_vertices: Vec<(f32, f32)>,  // Vertices for polygon being created
+    polygon_vertices: Vec<(f32, f32)>, // Vertices for polygon being created
 }
 
 impl DrawState {
@@ -57,9 +57,33 @@ impl DrawState {
     }
 }
 
+// Resize state
+struct ResizeState {
+    annotation_index: usize,
+    handle_type: String, // "corner-tl", "corner-tr", "corner-bl", "corner-br", "edge-t", "edge-r", "edge-b", "edge-l"
+    original_x: f32,
+    original_y: f32,
+    original_width: f32,
+    original_height: f32,
+}
+
+impl ResizeState {
+    fn new() -> Self {
+        Self {
+            annotation_index: 0,
+            handle_type: String::new(),
+            original_x: 0.0,
+            original_y: 0.0,
+            original_width: 0.0,
+            original_height: 0.0,
+        }
+    }
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
     let draw_state = Rc::new(RefCell::new(DrawState::new()));
+    let resize_state = Rc::new(RefCell::new(ResizeState::new()));
 
     // Load test image
     let image_path = std::path::PathBuf::from("/Users/jacobvaught/RUST/images/wide.jpeg");
@@ -84,20 +108,6 @@ fn main() -> Result<(), slint::PlatformError> {
         },
         Annotation {
             id: 2,
-            r#type: "rbbox".into(),
-            x: 400.0,
-            y: 300.0,
-            width: 250.0,
-            height: 120.0,
-            rotation: 30.0,
-            selected: false,
-            class: 2,
-            vertices: "".into(),
-            polygon_vertices: Default::default(),
-            polygon_path_commands: "".into(),
-        },
-        Annotation {
-            id: 3,
             r#type: "point".into(),
             x: 600.0,
             y: 200.0,
@@ -138,7 +148,11 @@ fn main() -> Result<(), slint::PlatformError> {
 
     ui.on_log_debug(move |msg| {
         use std::io::Write;
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("debug_output.log") {
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("debug_output.log")
+        {
             let _ = writeln!(file, "{}", msg);
         }
     });
@@ -210,7 +224,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         class,
                         vertices: "".into(),
                         polygon_vertices: Default::default(),
-            polygon_path_commands: "".into(),
+                        polygon_path_commands: "".into(),
                     });
                     state.next_id += 1;
                 }
@@ -228,7 +242,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     class,
                     vertices: "".into(),
                     polygon_vertices: Default::default(),
-            polygon_path_commands: "".into(),
+                    polygon_path_commands: "".into(),
                 });
                 state.next_id += 1;
             }
@@ -248,7 +262,8 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.on_delete_annotation_at(move |x, y| {
         // Find annotation at this position and delete it
         let count = annotations_handle.row_count();
-        for i in (0..count).rev() {  // Reverse to get topmost first
+        for i in (0..count).rev() {
+            // Reverse to get topmost first
             if let Some(ann) = annotations_handle.row_data(i) {
                 // Check if point is inside this annotation
                 let inside = if ann.r#type.as_str() == "point" {
@@ -258,8 +273,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     (dx * dx + dy * dy).sqrt() < 10.0
                 } else {
                     // For boxes, check if inside bounds
-                    x >= ann.x && x <= ann.x + ann.width &&
-                    y >= ann.y && y <= ann.y + ann.height
+                    x >= ann.x && x <= ann.x + ann.width && y >= ann.y && y <= ann.y + ann.height
                 };
 
                 if inside {
@@ -289,7 +303,8 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.on_classify_at(move |x, y, new_class| {
         // Find annotation at this position and update its class
         let count = annotations_handle.row_count();
-        for i in (0..count).rev() {  // Reverse to get topmost first
+        for i in (0..count).rev() {
+            // Reverse to get topmost first
             if let Some(mut ann) = annotations_handle.row_data(i) {
                 // Check if point is inside this annotation
                 let inside = if ann.r#type.as_str() == "point" {
@@ -299,18 +314,44 @@ fn main() -> Result<(), slint::PlatformError> {
                     (dx * dx + dy * dy).sqrt() < 10.0
                 } else {
                     // For boxes, check if inside bounds
-                    x >= ann.x && x <= ann.x + ann.width &&
-                    y >= ann.y && y <= ann.y + ann.height
+                    x >= ann.x && x <= ann.x + ann.width && y >= ann.y && y <= ann.y + ann.height
                 };
 
                 if inside {
                     ann.class = new_class;
                     annotations_handle.set_row_data(i, ann);
                     if let Some(ui) = ui_handle.upgrade() {
-                        ui.set_status_text(format!("Annotation reclassified to {}", new_class).into());
+                        ui.set_status_text(
+                            format!("Annotation reclassified to {}", new_class).into(),
+                        );
                     }
                     break;
                 }
+            }
+        }
+    });
+
+    // Classify currently selected annotation(s) when a digit key is pressed
+    let ui_handle = ui.as_weak();
+    let annotations_handle = annotations.clone();
+    ui.on_classify_selected(move |new_class| {
+        let mut updated = false;
+        let count = annotations_handle.row_count();
+        for i in 0..count {
+            if let Some(mut ann) = annotations_handle.row_data(i) {
+                if ann.selected {
+                    ann.class = new_class;
+                    annotations_handle.set_row_data(i, ann);
+                    updated = true;
+                }
+            }
+        }
+
+        if updated {
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_status_text(
+                    format!("Selected annotation set to class {}", new_class).into(),
+                );
             }
         }
     });
@@ -324,7 +365,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
         // Update preview string and path
         if let Some(ui) = ui_handle.upgrade() {
-            let vertices_str = state.polygon_vertices.iter()
+            let vertices_str = state
+                .polygon_vertices
+                .iter()
                 .map(|(vx, vy)| format!("{},{}", vx, vy))
                 .collect::<Vec<_>>()
                 .join(";");
@@ -332,22 +375,39 @@ fn main() -> Result<(), slint::PlatformError> {
 
             // Generate preview path commands (don't close the path with Z)
             let preview_path = if state.polygon_vertices.len() >= 2 {
-                let mut commands = format!("M {} {}", state.polygon_vertices[0].0, state.polygon_vertices[0].1);
+                let mut commands = format!(
+                    "M {} {}",
+                    state.polygon_vertices[0].0, state.polygon_vertices[0].1
+                );
                 for vertex in state.polygon_vertices.iter().skip(1) {
                     commands.push_str(&format!(" L {} {}", vertex.0, vertex.1));
                 }
-                commands  // Don't close with Z - polygon is still being drawn
+                commands // Don't close with Z - polygon is still being drawn
             } else if state.polygon_vertices.len() == 1 {
                 // Single vertex - just show a point (MoveTo with no lines)
-                format!("M {} {}", state.polygon_vertices[0].0, state.polygon_vertices[0].1)
+                format!(
+                    "M {} {}",
+                    state.polygon_vertices[0].0, state.polygon_vertices[0].1
+                )
             } else {
                 String::new()
             };
             ui.set_polygon_preview_path(preview_path.into());
 
-            ui.set_status_text(format!("Polygon: {} vertices (click more, Tab/S to finish)", state.polygon_vertices.len()).into());
+            ui.set_status_text(
+                format!(
+                    "Polygon: {} vertices (hold S, release S or Tab/Enter to finish)",
+                    state.polygon_vertices.len()
+                )
+                .into(),
+            );
         }
-        println!("Vertex added at ({:.1}, {:.1}), total: {}", x, y, state.polygon_vertices.len());
+        println!(
+            "Vertex added at ({:.1}, {:.1}), total: {}",
+            x,
+            y,
+            state.polygon_vertices.len()
+        );
     });
 
     let ui_handle = ui.as_weak();
@@ -362,7 +422,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 let class = ui.get_current_class();
 
                 // Convert vertices to string format
-                let vertices_str = state.polygon_vertices.iter()
+                let vertices_str = state
+                    .polygon_vertices
+                    .iter()
                     .map(|(x, y)| format!("{},{}", x, y))
                     .collect::<Vec<_>>()
                     .join(";");
@@ -396,8 +458,18 @@ fn main() -> Result<(), slint::PlatformError> {
                     polygon_path_commands: path_commands.into(),
                 });
                 state.next_id += 1;
-                println!("Polygon created with {} vertices: {}", state.polygon_vertices.len(), vertices_str);
-                ui.set_status_text(format!("Polygon created with {} vertices", state.polygon_vertices.len()).into());
+                println!(
+                    "Polygon created with {} vertices: {}",
+                    state.polygon_vertices.len(),
+                    vertices_str
+                );
+                ui.set_status_text(
+                    format!(
+                        "Polygon created with {} vertices",
+                        state.polygon_vertices.len()
+                    )
+                    .into(),
+                );
             }
         }
 
@@ -424,6 +496,109 @@ fn main() -> Result<(), slint::PlatformError> {
             ui.set_current_tool("Neutral".into());
             ui.set_status_text("Polygon cancelled".into());
         }
+    });
+
+    // Resize callbacks
+    let annotations_handle = annotations.clone();
+    let resize_state_handle = resize_state.clone();
+    ui.on_start_resize(move |index, handle_type| {
+        if let Some(ann) = annotations_handle.row_data(index as usize) {
+            let mut state = resize_state_handle.borrow_mut();
+            state.annotation_index = index as usize;
+            state.handle_type = handle_type.to_string();
+            state.original_x = ann.x;
+            state.original_y = ann.y;
+            state.original_width = ann.width;
+            state.original_height = ann.height;
+            println!(
+                "Start resize: index={}, handle={}, bounds=({:.1}, {:.1}, {:.1}, {:.1})",
+                index, handle_type, ann.x, ann.y, ann.width, ann.height
+            );
+        }
+    });
+
+    let annotations_handle = annotations.clone();
+    let resize_state_handle = resize_state.clone();
+    ui.on_update_resize(move |mouse_x, mouse_y| {
+        let state = resize_state_handle.borrow();
+        let index = state.annotation_index;
+
+        if let Some(mut ann) = annotations_handle.row_data(index) {
+            let handle = state.handle_type.as_str();
+
+            // Calculate new bounds based on handle type
+            match handle {
+                "corner-tl" => {
+                    // Top-left corner: opposite corner (bottom-right) is fixed
+                    let fixed_x = state.original_x + state.original_width;
+                    let fixed_y = state.original_y + state.original_height;
+                    ann.x = mouse_x.min(fixed_x);
+                    ann.y = mouse_y.min(fixed_y);
+                    ann.width = (fixed_x - ann.x).abs();
+                    ann.height = (fixed_y - ann.y).abs();
+                }
+                "corner-tr" => {
+                    // Top-right corner: opposite corner (bottom-left) is fixed
+                    let fixed_x = state.original_x;
+                    let fixed_y = state.original_y + state.original_height;
+                    ann.x = mouse_x.min(fixed_x);
+                    ann.y = mouse_y.min(fixed_y);
+                    ann.width = (mouse_x - fixed_x).abs();
+                    ann.height = (fixed_y - ann.y).abs();
+                }
+                "corner-bl" => {
+                    // Bottom-left corner: opposite corner (top-right) is fixed
+                    let fixed_x = state.original_x + state.original_width;
+                    let fixed_y = state.original_y;
+                    ann.x = mouse_x.min(fixed_x);
+                    ann.y = mouse_y.min(fixed_y);
+                    ann.width = (fixed_x - ann.x).abs();
+                    ann.height = (mouse_y - fixed_y).abs();
+                }
+                "corner-br" => {
+                    // Bottom-right corner: opposite corner (top-left) is fixed
+                    let fixed_x = state.original_x;
+                    let fixed_y = state.original_y;
+                    ann.x = mouse_x.min(fixed_x);
+                    ann.y = mouse_y.min(fixed_y);
+                    ann.width = (mouse_x - fixed_x).abs();
+                    ann.height = (mouse_y - fixed_y).abs();
+                }
+                "edge-t" => {
+                    // Top edge: bottom is fixed
+                    let fixed_y = state.original_y + state.original_height;
+                    ann.y = mouse_y.min(fixed_y);
+                    ann.height = (fixed_y - ann.y).abs();
+                }
+                "edge-r" => {
+                    // Right edge: left is fixed
+                    let fixed_x = state.original_x;
+                    ann.width = (mouse_x - fixed_x).max(1.0); // Ensure minimum width
+                }
+                "edge-b" => {
+                    // Bottom edge: top is fixed
+                    let fixed_y = state.original_y;
+                    ann.height = (mouse_y - fixed_y).max(1.0); // Ensure minimum height
+                }
+                "edge-l" => {
+                    // Left edge: right is fixed
+                    let fixed_x = state.original_x + state.original_width;
+                    ann.x = mouse_x.min(fixed_x);
+                    ann.width = (fixed_x - ann.x).abs();
+                }
+                _ => {}
+            }
+
+            annotations_handle.set_row_data(index, ann);
+        }
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_finish_resize(move || {
+        if let Some(ui) = ui_handle.upgrade() {
+            ui.set_status_text("Resize complete".into());
+        }
+        println!("Resize finished");
     });
 
     ui.run()

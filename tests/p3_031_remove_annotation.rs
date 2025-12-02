@@ -99,22 +99,34 @@ fn main() -> Result<(), slint::PlatformError> {
     // Schedule annotations to be removed via event loop
     let annotations_clone = annotations.clone();
     let timer1 = slint::Timer::default();
-    timer1.start(slint::TimerMode::SingleShot, Duration::from_secs(2), move || {
-        println!("Removing annotation at index 2 (the point)...");
-        annotations_clone.remove(2);
-    });
+    timer1.start(
+        slint::TimerMode::SingleShot,
+        Duration::from_secs(2),
+        move || {
+            println!("Removing annotation at index 2 (the point)...");
+            annotations_clone.remove(2);
+        },
+    );
 
     let annotations_clone = annotations.clone();
     let timer2 = slint::Timer::default();
-    timer2.start(slint::TimerMode::SingleShot, Duration::from_secs(4), move || {
-        println!("Removing annotation at index 1 (the rotated box)...");
-        annotations_clone.remove(1);
-    });
+    timer2.start(
+        slint::TimerMode::SingleShot,
+        Duration::from_secs(4),
+        move || {
+            println!("Removing annotation at index 1 (the rotated box)...");
+            annotations_clone.remove(1);
+        },
+    );
 
     let _timer3 = slint::Timer::default();
-    _timer3.start(slint::TimerMode::SingleShot, Duration::from_secs(6), move || {
-        println!("All removals complete. 2 boxes should remain.");
-    });
+    _timer3.start(
+        slint::TimerMode::SingleShot,
+        Duration::from_secs(6),
+        move || {
+            println!("All removals complete. 2 boxes should remain.");
+        },
+    );
 
     println!("=== P3-031: Remove Annotation Programmatically ===");
     println!("Instructions:");

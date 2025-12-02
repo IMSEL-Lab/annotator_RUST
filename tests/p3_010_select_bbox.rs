@@ -14,22 +14,20 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.set_image_source(image);
 
     // Create test scene with a single bbox
-    let annotations = std::rc::Rc::new(slint::VecModel::from(vec![
-        Annotation {
-            id: 1,
-            r#type: "bbox".into(),
-            x: 300.0,
-            y: 200.0,
-            width: 300.0,
-            height: 200.0,
-            rotation: 0.0,
-            selected: false,
-            class: 1,
-            vertices: "".into(),
-            polygon_vertices: Default::default(),
-            polygon_path_commands: "".into(),
-        },
-    ]));
+    let annotations = std::rc::Rc::new(slint::VecModel::from(vec![Annotation {
+        id: 1,
+        r#type: "bbox".into(),
+        x: 300.0,
+        y: 200.0,
+        width: 300.0,
+        height: 200.0,
+        rotation: 0.0,
+        selected: false,
+        class: 1,
+        vertices: "".into(),
+        polygon_vertices: Default::default(),
+        polygon_path_commands: "".into(),
+    }]));
     ui.set_annotations(annotations.clone().into());
 
     // Setup selection callbacks
