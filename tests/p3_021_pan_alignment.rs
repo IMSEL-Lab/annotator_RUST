@@ -23,6 +23,10 @@ fn main() -> Result<(), slint::PlatformError> {
             height: 150.0,
             rotation: 0.0,
             selected: false,
+            class: 1,
+            vertices: "".into(),
+            polygon_vertices: Default::default(),
+            polygon_path_commands: "".into(),
         },
         Annotation {
             id: 2,
@@ -33,6 +37,10 @@ fn main() -> Result<(), slint::PlatformError> {
             height: 0.0,
             rotation: 0.0,
             selected: false,
+            class: 1,
+            vertices: "".into(),
+            polygon_vertices: Default::default(),
+            polygon_path_commands: "".into(),
         },
         Annotation {
             id: 3,
@@ -43,6 +51,10 @@ fn main() -> Result<(), slint::PlatformError> {
             height: 100.0,
             rotation: 45.0,
             selected: false,
+            class: 1,
+            vertices: "".into(),
+            polygon_vertices: Default::default(),
+            polygon_path_commands: "".into(),
         },
     ]));
     ui.set_annotations(annotations.clone().into());
