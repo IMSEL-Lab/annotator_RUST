@@ -1,5 +1,8 @@
-slint::include_modules!();
+// P3-010: Select a single axis-aligned bbox
+// Test: Click clearly inside the bbox, away from edges
+// Expected: Exactly that bbox becomes selected with visual change
 
+slint::include_modules!();
 use slint::Model;
 
 fn main() -> Result<(), slint::PlatformError> {
@@ -10,42 +13,22 @@ fn main() -> Result<(), slint::PlatformError> {
     let image = slint::Image::load_from_path(&image_path).expect("Failed to load test image");
     ui.set_image_source(image);
 
-    // Initialize Annotations
+    // Create test scene with a single bbox
     let annotations = std::rc::Rc::new(slint::VecModel::from(vec![
         Annotation {
             id: 1,
             r#type: "bbox".into(),
-            x: 100.0,
-            y: 100.0,
-            width: 200.0,
-            height: 150.0,
-            rotation: 0.0,
-            selected: false,
-        },
-        Annotation {
-            id: 2,
-            r#type: "rbbox".into(),
-            x: 400.0,
-            y: 300.0,
-            width: 250.0,
-            height: 120.0,
-            rotation: 30.0,
-            selected: false,
-        },
-        Annotation {
-            id: 3,
-            r#type: "point".into(),
-            x: 600.0,
+            x: 300.0,
             y: 200.0,
-            width: 0.0,
-            height: 0.0,
+            width: 300.0,
+            height: 200.0,
             rotation: 0.0,
             selected: false,
         },
     ]));
     ui.set_annotations(annotations.clone().into());
 
-    // Selection Callbacks
+    // Setup selection callbacks
     let annotations_handle = annotations.clone();
     ui.on_select_annotation(move |index| {
         let count = annotations_handle.row_count();
@@ -54,6 +37,7 @@ fn main() -> Result<(), slint::PlatformError> {
             data.selected = i == index as usize;
             annotations_handle.set_row_data(i, data);
         }
+        println!("✓ Annotation {} selected", index);
     });
 
     let annotations_handle = annotations.clone();
@@ -66,14 +50,16 @@ fn main() -> Result<(), slint::PlatformError> {
                 annotations_handle.set_row_data(i, data);
             }
         }
+        println!("✓ All annotations deselected");
     });
 
-    ui.on_log_debug(move |msg| {
-        use std::io::Write;
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("debug_output.log") {
-            let _ = writeln!(file, "{}", msg);
-        }
-    });
+    println!("=== P3-010: Select Single BBox ===");
+    println!("Instructions:");
+    println!("1. Click inside the red rectangle (centered on screen)");
+    println!("2. Verify the rectangle turns GREEN");
+    println!("3. Click outside the rectangle");
+    println!("4. Verify the rectangle turns back to RED");
+    println!("=====================================");
 
     ui.run()
 }

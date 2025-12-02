@@ -1,0 +1,143 @@
+    Checking glutin v0.32.3
+    Checking muda v0.17.1
+   Compiling annotator v0.1.0 (/Users/jacobvaught/RUST/annotator)
+    Checking glutin-winit v0.5.0
+    Checking i-slint-backend-winit v1.14.1
+    Checking i-slint-backend-selector v1.14.1
+    Checking slint v1.14.1
+error: failed to run custom build command for `annotator v0.1.0 (/Users/jacobvaught/RUST/annotator)`
+
+Caused by:
+  process didn't exit successfully: `/Users/jacobvaught/RUST/annotator/target/debug/build/annotator-ae3f39908ea609ca/build-script-build` (exit status: 101)
+  --- stderr
+  error: Unknown element 'Item'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:82:61
+      |
+  82  |                 for annotation[index] in root.annotations : Item {
+      |                                                             ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122:74
+      |
+  122 |                             x: parent.cx + (-parent.hw * Math.cos(parent.rot) - -parent.hh * Math.sin(parent.rot));
+      |                                                                          ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122:110
+      |
+  122 |                             x: parent.cx + (-parent.hw * Math.cos(parent.rot) - -parent.hh * Math.sin(parent.rot));
+      |                                                                                                              ^
+  error: Cannot convert length to float. Divide by 1px to convert to a plain number
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122:32
+      |
+  122 |                             x: parent.cx + (-parent.hw * Math.cos(parent.rot) - -parent.hh * Math.sin(parent.rot));
+      |                                ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123:74
+      |
+  123 |                             y: parent.cy + (-parent.hw * Math.sin(parent.rot) + -parent.hh * Math.cos(parent.rot));
+      |                                                                          ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123:110
+      |
+  123 |                             y: parent.cy + (-parent.hw * Math.sin(parent.rot) + -parent.hh * Math.cos(parent.rot));
+      |                                                                                                              ^
+  error: Cannot convert length to float. Divide by 1px to convert to a plain number
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123:32
+      |
+  123 |                             y: parent.cy + (-parent.hw * Math.sin(parent.rot) + -parent.hh * Math.cos(parent.rot));
+      |                                ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126:73
+      |
+  126 |                             x: parent.cx + (parent.hw * Math.cos(parent.rot) - -parent.hh * Math.sin(parent.rot));
+      |                                                                         ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126:109
+      |
+  126 |                             x: parent.cx + (parent.hw * Math.cos(parent.rot) - -parent.hh * Math.sin(parent.rot));
+      |                                                                                                             ^
+  error: Cannot convert length to float. Divide by 1px to convert to a plain number
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126:32
+      |
+  126 |                             x: parent.cx + (parent.hw * Math.cos(parent.rot) - -parent.hh * Math.sin(parent.rot));
+      |                                ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127:73
+      |
+  127 |                             y: parent.cy + (parent.hw * Math.sin(parent.rot) + -parent.hh * Math.cos(parent.rot));
+      |                                                                         ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127:109
+      |
+  127 |                             y: parent.cy + (parent.hw * Math.sin(parent.rot) + -parent.hh * Math.cos(parent.rot));
+      |                                                                                                             ^
+  error: Cannot convert length to float. Divide by 1px to convert to a plain number
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127:32
+      |
+  127 |                             y: parent.cy + (parent.hw * Math.sin(parent.rot) + -parent.hh * Math.cos(parent.rot));
+      |                                ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130:73
+      |
+  130 |                             x: parent.cx + (parent.hw * Math.cos(parent.rot) - parent.hh * Math.sin(parent.rot));
+      |                                                                         ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130:108
+      |
+  130 |                             x: parent.cx + (parent.hw * Math.cos(parent.rot) - parent.hh * Math.sin(parent.rot));
+      |                                                                                                            ^
+  error: Cannot convert length to float. Divide by 1px to convert to a plain number
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130:32
+      |
+  130 |                             x: parent.cx + (parent.hw * Math.cos(parent.rot) - parent.hh * Math.sin(parent.rot));
+      |                                ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131:73
+      |
+  131 |                             y: parent.cy + (parent.hw * Math.sin(parent.rot) + parent.hh * Math.cos(parent.rot));
+      |                                                                         ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131:108
+      |
+  131 |                             y: parent.cy + (parent.hw * Math.sin(parent.rot) + parent.hh * Math.cos(parent.rot));
+      |                                                                                                            ^
+  error: Cannot convert length to float. Divide by 1px to convert to a plain number
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131:32
+      |
+  131 |                             y: parent.cy + (parent.hw * Math.sin(parent.rot) + parent.hh * Math.cos(parent.rot));
+      |                                ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134:74
+      |
+  134 |                             x: parent.cx + (-parent.hw * Math.cos(parent.rot) - parent.hh * Math.sin(parent.rot));
+      |                                                                          ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134:109
+      |
+  134 |                             x: parent.cx + (-parent.hw * Math.cos(parent.rot) - parent.hh * Math.sin(parent.rot));
+      |                                                                                                             ^
+  error: Cannot convert length to float. Divide by 1px to convert to a plain number
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134:32
+      |
+  134 |                             x: parent.cx + (-parent.hw * Math.cos(parent.rot) - parent.hh * Math.sin(parent.rot));
+      |                                ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135:74
+      |
+  135 |                             y: parent.cy + (-parent.hw * Math.sin(parent.rot) + parent.hh * Math.cos(parent.rot));
+      |                                                                          ^
+  error: Element 'Path' does not have a property 'rot'
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135:109
+      |
+  135 |                             y: parent.cy + (-parent.hw * Math.sin(parent.rot) + parent.hh * Math.cos(parent.rot));
+      |                                                                                                             ^
+  error: Cannot convert length to float. Divide by 1px to convert to a plain number
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135:32
+      |
+  135 |                             y: parent.cy + (-parent.hw * Math.sin(parent.rot) + parent.hh * Math.cos(parent.rot));
+      |                                ^
+
+
+  thread 'main' panicked at build.rs:2:48:
+  called `Result::unwrap()` on an `Err` value: CompileError(["/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:82: Unknown element 'Item'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122: Cannot convert length to float. Divide by 1px to convert to a plain number", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123: Cannot convert length to float. Divide by 1px to convert to a plain number", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126: Cannot convert length to float. Divide by 1px to convert to a plain number", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127: Cannot convert length to float. Divide by 1px to convert to a plain number", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130: Cannot convert length to float. Divide by 1px to convert to a plain number", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131: Cannot convert length to float. Divide by 1px to convert to a plain number", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134: Cannot convert length to float. Divide by 1px to convert to a plain number", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135: Element 'Path' does not have a property 'rot'", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135: Cannot convert length to float. Divide by 1px to convert to a plain number"])
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+warning: build failed, waiting for other jobs to finish...
