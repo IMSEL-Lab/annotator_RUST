@@ -48,9 +48,11 @@ export component AppWindow inherits Window {
     // Phase 4: Polygon mode
     in-out property <bool> polygon-mode-active: false;
     in-out property <bool> s-key-held: false;  // Track S key hold for polygon workflow
-    in-out property <bool> added-vertex-while-holding-s: false;  // Track if hold-and-click workflow
     in-out property <string> polygon-preview-vertices: "";  // Current vertices being collected
     in-out property <string> polygon-preview-path: "";  // SVG path for preview lines
+
+    // Phase 3: Resize state
+    in-out property <bool> is-resizing: false;
 
     // Helper to generate SVG path commands from vertices string
     pure function generate-polygon-path(vertices-str: string) -> string {
@@ -66,9 +68,15 @@ export component AppWindow inherits Window {
     callback delete-annotation-at(float, float); // Image coords
     callback delete-annotation(int); // Delete annotation by index
     callback classify-at(float, float, int);  // Image coords + class
+    callback classify-selected(int);  // Reclassify currently selected annotation(s)
     callback add-polygon-vertex(float, float);  // Add vertex to current polygon
     callback finish-polygon();  // Complete and create polygon annotation
     callback cancel-polygon();  // Cancel polygon creation
+
+    // Phase 3: Resize callbacks
+    callback start-resize(int, string);  // (annotation index, handle type: "corner-tl", "corner-tr", "corner-bl", "corner-br", "edge-t", "edge-r", "edge-b", "edge-l")
+    callback update-resize(float, float);  // Image coords during drag
+    callback finish-resize();  // Complete resize operation
 
     VerticalBox {
         preferred-width: 1200px;
@@ -143,10 +151,6 @@ export component AppWindow inherits Window {
                                     let img-x = (self.mouse-x - image-container.pan-x) / image-container.zoom-level / 1px;
                                     let img-y = (self.mouse-y - image-container.pan-y) / image-container.zoom-level / 1px;
                                     root.add-polygon-vertex(img-x, img-y);
-                                    // Track if we're in hold-and-click workflow
-                                    if (root.s-key-held) {
-                                        root.added-vertex-while-holding-s = true;
-                                    }
                                 }
                                 // Check if a drawing tool is active
                                 else if (root.current-tool != "Neutral") {
@@ -234,7 +238,7 @@ export component AppWindow inherits Window {
                     border-radius: 5px;
 
                     Text {
-                        text: "POLYGON MODE - Click vertices, Tab/S to finish, Q/Esc to cancel";
+                        text: "POLYGON MODE (Hold S) - Click vertices, release S/Tab/Enter to finish, Esc to cancel";
                         color: white;
                         font-size: 10px;
                         horizontal-alignment: center;
@@ -375,6 +379,281 @@ export component AppWindow inherits Window {
                         }
                     }
 
+                    // Resize handles (only for selected bbox/rbbox, not in polygon mode)
+                    if annotation.selected && (annotation.type == "bbox" || annotation.type == "rbbox") && !root.polygon-mode-active : Rectangle {
+                        property <length> handle-size: 8px;
+                        property <length> half-handle: self.handle-size / 2;
+                        background: #00000000;
+                        width: 100%;
+                        height: 100%;
+
+                        // Corner handles
+                        // Top-left
+                        Rectangle {
+                            x: annotation-rect.screen-x - parent.half-handle;
+                            y: annotation-rect.screen-y - parent.half-handle;
+                            width: parent.handle-size;
+                            height: parent.handle-size;
+                            background: #00FF00;
+                            border-width: 1px;
+                            border-color: #000000;
+
+                            TouchArea {
+                                mouse-cursor: nwse-resize;
+                                pointer-event(event) => {
+                                    if (event.button == PointerEventButton.left) {
+                                        if (event.kind == PointerEventKind.down) {
+                                            root.start-resize(index, "corner-tl");
+                                            root.is-resizing = true;
+                                        } else if (event.kind == PointerEventKind.up) {
+                                            root.finish-resize();
+                                            root.is-resizing = false;
+                                        }
+                                    }
+                                }
+                                moved => {
+                                    if (self.pressed && root.is-resizing) {
+                                        let img-x = (self.mouse-x + parent.x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                        let img-y = (self.mouse-y + parent.y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                        root.update-resize(img-x, img-y);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Top-right
+                        Rectangle {
+                            x: annotation-rect.screen-x + annotation-rect.screen-w - parent.half-handle;
+                            y: annotation-rect.screen-y - parent.half-handle;
+                            width: parent.handle-size;
+                            height: parent.handle-size;
+                            background: #00FF00;
+                            border-width: 1px;
+                            border-color: #000000;
+
+                            TouchArea {
+                                mouse-cursor: nesw-resize;
+                                pointer-event(event) => {
+                                    if (event.button == PointerEventButton.left) {
+                                        if (event.kind == PointerEventKind.down) {
+                                            root.start-resize(index, "corner-tr");
+                                            root.is-resizing = true;
+                                        } else if (event.kind == PointerEventKind.up) {
+                                            root.finish-resize();
+                                            root.is-resizing = false;
+                                        }
+                                    }
+                                }
+                                moved => {
+                                    if (self.pressed && root.is-resizing) {
+                                        let img-x = (self.mouse-x + parent.x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                        let img-y = (self.mouse-y + parent.y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                        root.update-resize(img-x, img-y);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bottom-left
+                        Rectangle {
+                            x: annotation-rect.screen-x - parent.half-handle;
+                            y: annotation-rect.screen-y + annotation-rect.screen-h - parent.half-handle;
+                            width: parent.handle-size;
+                            height: parent.handle-size;
+                            background: #00FF00;
+                            border-width: 1px;
+                            border-color: #000000;
+
+                            TouchArea {
+                                mouse-cursor: nesw-resize;
+                                pointer-event(event) => {
+                                    if (event.button == PointerEventButton.left) {
+                                        if (event.kind == PointerEventKind.down) {
+                                            root.start-resize(index, "corner-bl");
+                                            root.is-resizing = true;
+                                        } else if (event.kind == PointerEventKind.up) {
+                                            root.finish-resize();
+                                            root.is-resizing = false;
+                                        }
+                                    }
+                                }
+                                moved => {
+                                    if (self.pressed && root.is-resizing) {
+                                        let img-x = (self.mouse-x + parent.x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                        let img-y = (self.mouse-y + parent.y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                        root.update-resize(img-x, img-y);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bottom-right
+                        Rectangle {
+                            x: annotation-rect.screen-x + annotation-rect.screen-w - parent.half-handle;
+                            y: annotation-rect.screen-y + annotation-rect.screen-h - parent.half-handle;
+                            width: parent.handle-size;
+                            height: parent.handle-size;
+                            background: #00FF00;
+                            border-width: 1px;
+                            border-color: #000000;
+
+                            TouchArea {
+                                mouse-cursor: nwse-resize;
+                                pointer-event(event) => {
+                                    if (event.button == PointerEventButton.left) {
+                                        if (event.kind == PointerEventKind.down) {
+                                            root.start-resize(index, "corner-br");
+                                            root.is-resizing = true;
+                                        } else if (event.kind == PointerEventKind.up) {
+                                            root.finish-resize();
+                                            root.is-resizing = false;
+                                        }
+                                    }
+                                }
+                                moved => {
+                                    if (self.pressed && root.is-resizing) {
+                                        let img-x = (self.mouse-x + parent.x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                        let img-y = (self.mouse-y + parent.y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                        root.update-resize(img-x, img-y);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Edge handles
+                        // Top edge
+                        Rectangle {
+                            x: annotation-rect.screen-x + annotation-rect.screen-w / 2 - parent.half-handle;
+                            y: annotation-rect.screen-y - parent.half-handle;
+                            width: parent.handle-size;
+                            height: parent.handle-size;
+                            background: #00FF00;
+                            border-width: 1px;
+                            border-color: #000000;
+
+                            TouchArea {
+                                mouse-cursor: ns-resize;
+                                pointer-event(event) => {
+                                    if (event.button == PointerEventButton.left) {
+                                        if (event.kind == PointerEventKind.down) {
+                                            root.start-resize(index, "edge-t");
+                                            root.is-resizing = true;
+                                        } else if (event.kind == PointerEventKind.up) {
+                                            root.finish-resize();
+                                            root.is-resizing = false;
+                                        }
+                                    }
+                                }
+                                moved => {
+                                    if (self.pressed && root.is-resizing) {
+                                        let img-x = (self.mouse-x + parent.x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                        let img-y = (self.mouse-y + parent.y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                        root.update-resize(img-x, img-y);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Right edge
+                        Rectangle {
+                            x: annotation-rect.screen-x + annotation-rect.screen-w - parent.half-handle;
+                            y: annotation-rect.screen-y + annotation-rect.screen-h / 2 - parent.half-handle;
+                            width: parent.handle-size;
+                            height: parent.handle-size;
+                            background: #00FF00;
+                            border-width: 1px;
+                            border-color: #000000;
+
+                            TouchArea {
+                                mouse-cursor: ew-resize;
+                                pointer-event(event) => {
+                                    if (event.button == PointerEventButton.left) {
+                                        if (event.kind == PointerEventKind.down) {
+                                            root.start-resize(index, "edge-r");
+                                            root.is-resizing = true;
+                                        } else if (event.kind == PointerEventKind.up) {
+                                            root.finish-resize();
+                                            root.is-resizing = false;
+                                        }
+                                    }
+                                }
+                                moved => {
+                                    if (self.pressed && root.is-resizing) {
+                                        let img-x = (self.mouse-x + parent.x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                        let img-y = (self.mouse-y + parent.y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                        root.update-resize(img-x, img-y);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bottom edge
+                        Rectangle {
+                            x: annotation-rect.screen-x + annotation-rect.screen-w / 2 - parent.half-handle;
+                            y: annotation-rect.screen-y + annotation-rect.screen-h - parent.half-handle;
+                            width: parent.handle-size;
+                            height: parent.handle-size;
+                            background: #00FF00;
+                            border-width: 1px;
+                            border-color: #000000;
+
+                            TouchArea {
+                                mouse-cursor: ns-resize;
+                                pointer-event(event) => {
+                                    if (event.button == PointerEventButton.left) {
+                                        if (event.kind == PointerEventKind.down) {
+                                            root.start-resize(index, "edge-b");
+                                            root.is-resizing = true;
+                                        } else if (event.kind == PointerEventKind.up) {
+                                            root.finish-resize();
+                                            root.is-resizing = false;
+                                        }
+                                    }
+                                }
+                                moved => {
+                                    if (self.pressed && root.is-resizing) {
+                                        let img-x = (self.mouse-x + parent.x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                        let img-y = (self.mouse-y + parent.y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                        root.update-resize(img-x, img-y);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Left edge
+                        Rectangle {
+                            x: annotation-rect.screen-x - parent.half-handle;
+                            y: annotation-rect.screen-y + annotation-rect.screen-h / 2 - parent.half-handle;
+                            width: parent.handle-size;
+                            height: parent.handle-size;
+                            background: #00FF00;
+                            border-width: 1px;
+                            border-color: #000000;
+
+                            TouchArea {
+                                mouse-cursor: ew-resize;
+                                pointer-event(event) => {
+                                    if (event.button == PointerEventButton.left) {
+                                        if (event.kind == PointerEventKind.down) {
+                                            root.start-resize(index, "edge-l");
+                                            root.is-resizing = true;
+                                        } else if (event.kind == PointerEventKind.up) {
+                                            root.finish-resize();
+                                            root.is-resizing = false;
+                                        }
+                                    }
+                                }
+                                moved => {
+                                    if (self.pressed && root.is-resizing) {
+                                        let img-x = (self.mouse-x + parent.x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                        let img-y = (self.mouse-y + parent.y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                        root.update-resize(img-x, img-y);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Only intercept clicks when NOT in polygon mode
                     if !root.polygon-mode-active : TouchArea {
                         x: annotation-rect.cx - annotation-rect.sel-w / 2;
@@ -438,22 +717,20 @@ export component AppWindow inherits Window {
                 accept
             }
             else if (event.text == "c" || event.text == "C") {
-                root.current-tool = "Point (C)";
-                accept
-            }
-            else if (event.text == "s" || event.text == "S") {
-                // S key press: enter polygon mode or prepare for hold-and-click
-                if (!root.polygon-mode-active) {
-                    root.polygon-mode-active = true;
-                    root.current-tool = "Polygon (S)";
-                }
-                // Reset the hold-and-click flag
-                root.added-vertex-while-holding-s = false;
-                root.s-key-held = true;
-                accept
-            }
-            else if (event.text == "q" || event.text == "Q") {
-                // Cancel polygon if in mode, otherwise hold for delete
+                            root.current-tool = "Point (C)";
+                            accept
+                        }
+                        else if (event.text == "s" || event.text == "S") {
+                            // S key press: activate polygon mode while held
+                            if (!root.polygon-mode-active) {
+                                root.polygon-mode-active = true;
+                                root.current-tool = "Polygon (Hold S)";
+                            }
+                            root.s-key-held = true;
+                            accept
+                        }
+                        else if (event.text == "q" || event.text == "Q") {
+                            // Cancel polygon if in mode, otherwise hold for delete
                 if (root.polygon-mode-active) {
                     root.cancel-polygon();
                 } else {
@@ -461,15 +738,20 @@ export component AppWindow inherits Window {
                 }
                 accept
             }
-            else if (event.text == "1") { root.current-class = 1; root.digit-key-held = true; accept }
-            else if (event.text == "2") { root.current-class = 2; root.digit-key-held = true; accept }
-            else if (event.text == "3") { root.current-class = 3; root.digit-key-held = true; accept }
-            else if (event.text == "4") { root.current-class = 4; root.digit-key-held = true; accept }
-            else if (event.text == "5") { root.current-class = 5; root.digit-key-held = true; accept }
+            else if (event.text == "1") { root.current-class = 1; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
+            else if (event.text == "2") { root.current-class = 2; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
+            else if (event.text == "3") { root.current-class = 3; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
+            else if (event.text == "4") { root.current-class = 4; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
+            else if (event.text == "5") { root.current-class = 5; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
             else if (event.text == "\n") {
                 // Enter key - finish polygon
                 if (root.polygon-mode-active) {
                     root.finish-polygon();
+                    if (root.s-key-held) {
+                        // Keep mode active while S is held
+                        root.polygon-mode-active = true;
+                        root.current-tool = "Polygon (Hold S)";
+                    }
                     accept
                 }
                 reject
@@ -478,6 +760,11 @@ export component AppWindow inherits Window {
                 // Tab key - finish polygon
                 if (root.polygon-mode-active) {
                     root.finish-polygon();
+                    if (root.s-key-held) {
+                        // Keep mode active while S is held
+                        root.polygon-mode-active = true;
+                        root.current-tool = "Polygon (Hold S)";
+                    }
                     accept
                 }
                 reject
@@ -492,29 +779,24 @@ export component AppWindow inherits Window {
             reject
         }
 
-        key-released(event) => {
-            if (event.text == "b" || event.text == "B" ||
-                event.text == "c" || event.text == "C") {
-                root.current-tool = "Neutral";
-                accept
-            }
-            else if (event.text == "s" || event.text == "S") {
-                // S key release: check if this was hold-and-click workflow or tap workflow
-                if (root.polygon-mode-active && root.added-vertex-while-holding-s) {
-                    // Hold-and-click workflow: finish polygon and EXIT mode
-                    root.finish-polygon();
-                } else if (root.polygon-mode-active && root.s-key-held) {
-                    // Tap workflow: finish polygon and STAY in mode
-                    root.finish-polygon();
-                    root.polygon-mode-active = true;
-                    root.current-tool = "Polygon (S)";
+            key-released(event) => {
+                if (event.text == "b" || event.text == "B" ||
+                    event.text == "c" || event.text == "C") {
+                    root.current-tool = "Neutral";
+                    accept
                 }
-                root.s-key-held = false;
-                root.added-vertex-while-holding-s = false;
-                accept
-            }
-            else if (event.text == "q" || event.text == "Q") {
-                root.q-key-held = false;
+                else if (event.text == "s" || event.text == "S") {
+                    // S key release: finish any in-progress polygon and exit mode
+                    if (root.polygon-mode-active) {
+                        root.finish-polygon();
+                    }
+                    root.polygon-mode-active = false;
+                    root.current-tool = "Neutral";
+                    root.s-key-held = false;
+                    accept
+                }
+                else if (event.text == "q" || event.text == "Q") {
+                    root.q-key-held = false;
                 accept
             }
             else if (event.text == "1" || event.text == "2" || event.text == "3" ||

@@ -1,0 +1,13 @@
+Key/Mouse Interactions (current build)
+- BBox tool: hold B → drag left mouse to draw box; release mouse finalizes; release B exits tool.
+- Point tool: hold C → click left mouse to place point; release C exits tool.
+- Polygon (Segmentation): hold S to enter; while holding, left-click to add vertices; release S (or press Tab/Enter while holding) to finish and exit; Esc cancels polygon while in mode.
+- Pan: with no tool active and no special key held, left-drag on canvas pans.
+- Zoom: mouse wheel scroll (cursor-centered) zooms in/out.
+- Selection: left-click annotation (when no tool active) to select.
+- Deselect: click empty canvas (Neutral mode).
+- Delete: hold Q and left-click annotation to delete; or double-click annotation to delete.
+- Resize: when a bbox/rbbox is selected, drag green handles (corners/edges) with left mouse; release to finish.
+- Class change (selected): click to select annotation, then press digit 1–5 to set its class.
+- Class change (click-to-apply): hold digit 1–5 and left-click an annotation to reclassify it.
+- Status/info: status bar shows current tool, class, and polygon hints; debug log written via on_log_debug.

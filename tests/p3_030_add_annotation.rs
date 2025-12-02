@@ -71,63 +71,75 @@ fn main() -> Result<(), slint::PlatformError> {
     // Schedule annotations to be added via event loop
     let annotations_clone = annotations.clone();
     let timer1 = slint::Timer::default();
-    timer1.start(slint::TimerMode::SingleShot, Duration::from_secs(2), move || {
-        println!("Adding rotated box annotation...");
-        annotations_clone.push(Annotation {
-            id: 3,
-            r#type: "rbbox".into(),
-            x: 600.0,
-            y: 300.0,
-            width: 180.0,
-            height: 120.0,
-            rotation: 45.0,
-            selected: false,
-            class: 1,
-            vertices: "".into(),
-            polygon_vertices: Default::default(),
-            polygon_path_commands: "".into(),
-        });
-    });
+    timer1.start(
+        slint::TimerMode::SingleShot,
+        Duration::from_secs(2),
+        move || {
+            println!("Adding rotated box annotation...");
+            annotations_clone.push(Annotation {
+                id: 3,
+                r#type: "rbbox".into(),
+                x: 600.0,
+                y: 300.0,
+                width: 180.0,
+                height: 120.0,
+                rotation: 45.0,
+                selected: false,
+                class: 1,
+                vertices: "".into(),
+                polygon_vertices: Default::default(),
+                polygon_path_commands: "".into(),
+            });
+        },
+    );
 
     let annotations_clone = annotations.clone();
     let timer2 = slint::Timer::default();
-    timer2.start(slint::TimerMode::SingleShot, Duration::from_secs(4), move || {
-        println!("Adding another bbox annotation...");
-        annotations_clone.push(Annotation {
-            id: 4,
-            r#type: "bbox".into(),
-            x: 500.0,
-            y: 400.0,
-            width: 150.0,
-            height: 100.0,
-            rotation: 0.0,
-            selected: false,
-            class: 1,
-            vertices: "".into(),
-            polygon_vertices: Default::default(),
-            polygon_path_commands: "".into(),
-        });
-    });
+    timer2.start(
+        slint::TimerMode::SingleShot,
+        Duration::from_secs(4),
+        move || {
+            println!("Adding another bbox annotation...");
+            annotations_clone.push(Annotation {
+                id: 4,
+                r#type: "bbox".into(),
+                x: 500.0,
+                y: 400.0,
+                width: 150.0,
+                height: 100.0,
+                rotation: 0.0,
+                selected: false,
+                class: 1,
+                vertices: "".into(),
+                polygon_vertices: Default::default(),
+                polygon_path_commands: "".into(),
+            });
+        },
+    );
 
     let annotations_clone = annotations.clone();
     let timer3 = slint::Timer::default();
-    timer3.start(slint::TimerMode::SingleShot, Duration::from_secs(6), move || {
-        println!("Adding point annotation...");
-        annotations_clone.push(Annotation {
-            id: 5,
-            r#type: "point".into(),
-            x: 700.0,
-            y: 250.0,
-            width: 0.0,
-            height: 0.0,
-            rotation: 0.0,
-            selected: false,
-            class: 1,
-            vertices: "".into(),
-            polygon_vertices: Default::default(),
-            polygon_path_commands: "".into(),
-        });
-    });
+    timer3.start(
+        slint::TimerMode::SingleShot,
+        Duration::from_secs(6),
+        move || {
+            println!("Adding point annotation...");
+            annotations_clone.push(Annotation {
+                id: 5,
+                r#type: "point".into(),
+                x: 700.0,
+                y: 250.0,
+                width: 0.0,
+                height: 0.0,
+                rotation: 0.0,
+                selected: false,
+                class: 1,
+                vertices: "".into(),
+                polygon_vertices: Default::default(),
+                polygon_path_commands: "".into(),
+            });
+        },
+    );
 
     println!("=== P3-030: Add Annotation Programmatically ===");
     println!("Instructions:");

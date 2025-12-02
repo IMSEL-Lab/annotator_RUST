@@ -18,7 +18,15 @@ pub fn create_bbox(id: i32, x: f32, y: f32, width: f32, height: f32, selected: b
 }
 
 /// Create a rotated bounding box
-pub fn create_rbbox(id: i32, x: f32, y: f32, width: f32, height: f32, rotation: f32, selected: bool) -> Annotation {
+pub fn create_rbbox(
+    id: i32,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    rotation: f32,
+    selected: bool,
+) -> Annotation {
     Annotation {
         id,
         r#type: "rbbox".into(),
