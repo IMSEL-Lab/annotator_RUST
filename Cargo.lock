@@ -200,6 +200,8 @@ dependencies = [
 name = "annotator"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "slint",
  "slint-build",
 ]

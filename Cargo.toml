@@ -5,47 +5,8 @@ edition = "2024"
 
 [dependencies]
 slint = "1.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 [build-dependencies]
 slint-build = "1.8"
-
-# Test executables
-[[bin]]
-name = "p3_010_select_bbox"
-path = "tests/p3_010_select_bbox.rs"
-
-[[bin]]
-name = "p3_011_select_point"
-path = "tests/p3_011_select_point.rs"
-
-[[bin]]
-name = "p3_012_deselect_canvas"
-path = "tests/p3_012_deselect_canvas.rs"
-
-[[bin]]
-name = "p3_013_overlapping_selection"
-path = "tests/p3_013_overlapping_selection.rs"
-
-[[bin]]
-name = "p3_020_initial_alignment"
-path = "tests/p3_020_initial_alignment.rs"
-
-[[bin]]
-name = "p3_021_pan_alignment"
-path = "tests/p3_021_pan_alignment.rs"
-
-[[bin]]
-name = "p3_022_zoom_alignment"
-path = "tests/p3_022_zoom_alignment.rs"
-
-[[bin]]
-name = "p3_030_add_annotation"
-path = "tests/p3_030_add_annotation.rs"
-
-[[bin]]
-name = "p3_031_remove_annotation"
-path = "tests/p3_031_remove_annotation.rs"
-
-[[bin]]
-name = "p3_040_performance_many"
-path = "tests/p3_040_performance_many.rs"

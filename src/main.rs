@@ -1,8 +1,11 @@
 slint::include_modules!();
 
-use slint::Model;
+use serde::Deserialize;
+use slint::{Model, SharedPixelBuffer};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::path::{Path, PathBuf};
+use std::fs;
 
 /// Deterministic stub for auto-resize. Scales bbox about its center and clamps to image bounds.
 fn auto_resize_stub(
@@ -54,6 +57,113 @@ fn auto_resize_stub(
     }
 
     Some((new_x, new_y, new_w, new_h))
+}
+
+fn placeholder_image() -> slint::Image {
+    let width = 64u32;
+    let height = 64u32;
+    let mut buffer = SharedPixelBuffer::new(width, height);
+    for y in 0..height {
+        for x in 0..width {
+            let v = if (x / 8 + y / 8) % 2 == 0 { 60 } else { 110 };
+            let i = ((y * width + x) * 3) as usize;
+            let data = buffer.make_mut_bytes();
+            data[i] = v;
+            data[i + 1] = v;
+            data[i + 2] = v;
+        }
+    }
+    slint::Image::from_rgb8(buffer)
+}
+
+fn load_dataset(path: &Path) -> Result<DatasetState, String> {
+    let content = fs::read_to_string(path).map_err(|e| format!("Failed to read dataset: {e}"))?;
+    let parsed: DatasetFile = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse dataset JSON: {e}"))?;
+
+    let base_dir = path.parent().unwrap_or(Path::new("."));
+    let mut entries = Vec::new();
+    for entry in parsed.images {
+        let image_path = base_dir.join(entry.image);
+        let labels_path = entry.labels.map(|lp| base_dir.join(lp));
+        entries.push(DatasetEntry {
+            image_path,
+            labels_path,
+        });
+    }
+
+    if entries.is_empty() {
+        return Err("Dataset has no images".into());
+    }
+
+    Ok(DatasetState {
+        entries,
+        current_index: 0,
+    })
+}
+
+fn load_image_from_entry(entry: &DatasetEntry) -> Result<slint::Image, String> {
+    slint::Image::load_from_path(&entry.image_path)
+        .map_err(|_| format!("Image not found: {}", entry.image_path.display()))
+}
+
+fn load_yolo_annotations(
+    entry: &DatasetEntry,
+    img_size: (f32, f32),
+    next_id_start: i32,
+) -> Vec<Annotation> {
+    let mut anns = Vec::new();
+    let Some(label_path) = entry.labels_path.as_ref() else {
+        return anns;
+    };
+    let Ok(text) = fs::read_to_string(label_path) else {
+        return anns;
+    };
+
+    for (idx, line) in text.lines().enumerate() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() != 5 {
+            continue;
+        }
+        let cls: i32 = parts[0].parse().unwrap_or(0) + 1; // shift to 1-based class IDs used in UI
+        let cx: f32 = parts[1].parse().unwrap_or(0.5);
+        let cy: f32 = parts[2].parse().unwrap_or(0.5);
+        let w: f32 = parts[3].parse().unwrap_or(0.0);
+        let h: f32 = parts[4].parse().unwrap_or(0.0);
+
+        let img_w = img_size.0;
+        let img_h = img_size.1;
+
+        let abs_w = w * img_w;
+        let abs_h = h * img_h;
+        let x = cx * img_w - abs_w / 2.0;
+        let y = cy * img_h - abs_h / 2.0;
+
+        anns.push(Annotation {
+            id: next_id_start + idx as i32,
+            r#type: "bbox".into(),
+            x,
+            y,
+            width: abs_w,
+            height: abs_h,
+            rotation: 0.0,
+            selected: false,
+            class: cls,
+            vertices: "".into(),
+            polygon_vertices: Default::default(),
+            polygon_path_commands: "".into(),
+        });
+    }
+    anns
+}
+
+fn replace_annotations(model: &slint::VecModel<Annotation>, anns: Vec<Annotation>) {
+    for _ in (0..model.row_count()).rev() {
+        model.remove(model.row_count() - 1);
+    }
+    for ann in anns {
+        model.push(ann);
+    }
 }
 
 // Helper function to parse vertices string into PolygonVertex array
@@ -132,53 +242,122 @@ impl ResizeState {
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct DatasetFileEntry {
+    image: String,
+    labels: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DatasetFile {
+    images: Vec<DatasetFileEntry>,
+}
+
+#[derive(Debug, Clone)]
+struct DatasetEntry {
+    image_path: PathBuf,
+    labels_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+struct DatasetState {
+    entries: Vec<DatasetEntry>,
+    current_index: usize,
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
     let draw_state = Rc::new(RefCell::new(DrawState::new()));
     let resize_state = Rc::new(RefCell::new(ResizeState::new()));
-
-    // Load test image
-    let image_path = std::path::PathBuf::from("/Users/jacobvaught/RUST/images/wide.jpeg");
-    let image = slint::Image::load_from_path(&image_path).expect("Failed to load test image");
-    let image_size = image.size();
-    let image_dimensions = (image_size.width as f32, image_size.height as f32);
-    ui.set_image_source(image);
-
-    // Initialize Annotations
-    let annotations = std::rc::Rc::new(slint::VecModel::from(vec![
-        Annotation {
-            id: 1,
-            r#type: "bbox".into(),
-            x: 100.0,
-            y: 100.0,
-            width: 200.0,
-            height: 150.0,
-            rotation: 0.0,
-            selected: false,
-            class: 1,
-            vertices: "".into(),
-            polygon_vertices: Default::default(),
-            polygon_path_commands: "".into(),
-        },
-        Annotation {
-            id: 2,
-            r#type: "point".into(),
-            x: 600.0,
-            y: 200.0,
-            width: 0.0,
-            height: 0.0,
-            rotation: 0.0,
-            selected: false,
-            class: 1,
-            vertices: "".into(),
-            polygon_vertices: Default::default(),
-            polygon_path_commands: "".into(),
-        },
-    ]));
+    let annotations = std::rc::Rc::new(slint::VecModel::from(Vec::<Annotation>::new()));
     ui.set_annotations(annotations.clone().into());
+
+    // Tracks the original pixel size of the currently displayed image.
+    let image_dimensions = Rc::new(RefCell::new((1.0f32, 1.0f32)));
+    let placeholder = placeholder_image();
+    ui.set_image_source(placeholder.clone());
+
+    // Populated only after a dataset is successfully loaded from disk.
+    let dataset_state: Rc<RefCell<Option<DatasetState>>> = Rc::new(RefCell::new(None));
+
+    // Attempt to load dataset from CLI arg if provided.
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(ds_path) = args.get(1) {
+        match load_dataset(Path::new(ds_path)) {
+            Ok(state) => {
+                *dataset_state.borrow_mut() = Some(state);
+            }
+            Err(e) => {
+                ui.set_status_text(format!("Dataset load error: {e}").into());
+            }
+        }
+    } else {
+        ui.set_status_text("No dataset provided (pass path as first arg)".into());
+    }
+
+    // Shared loader used by navigation callbacks to display image + annotations at a given index.
+    let loader = {
+        let annotations = annotations.clone();
+        let ui_handle = ui.as_weak();
+        let image_dimensions = image_dimensions.clone();
+        let placeholder = placeholder.clone();
+        let dataset_state = dataset_state.clone();
+        let draw_state = draw_state.clone();
+        Rc::new(move |index: usize| {
+            let mut ds_opt = dataset_state.borrow_mut();
+            let Some(ds) = ds_opt.as_mut() else { return; };
+            if index >= ds.entries.len() {
+                return;
+            }
+            ds.current_index = index;
+            let entry = ds.entries[index].clone();
+
+            let img_result = load_image_from_entry(&entry);
+            let (image, img_size, status_msg) = match img_result {
+                Ok(img) => {
+                    let size = img.size();
+                    (
+                        img,
+                        (size.width as f32, size.height as f32),
+                        format!("Loaded {}", entry.image_path.display()),
+                    )
+                }
+                Err(err) => {
+                    let size = placeholder.size();
+                    (
+                        placeholder.clone(),
+                        (size.width as f32, size.height as f32),
+                        err,
+                    )
+                }
+            };
+
+            *image_dimensions.borrow_mut() = img_size;
+
+            let annotations_for_image = load_yolo_annotations(&entry, img_size, 1000);
+            replace_annotations(&annotations, annotations_for_image);
+            draw_state.borrow_mut().next_id = 2000;
+
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_image_source(image);
+                let fname = entry
+                    .image_path
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("?");
+                ui.set_current_image_name(fname.into());
+                ui.set_dataset_position(format!("{} / {}", index + 1, ds.entries.len()).into());
+                ui.set_status_text(status_msg.into());
+            }
+        })
+    };
+
+    // Load first image if dataset present
+    (loader)(0);
 
     // Selection Callbacks
     let annotations_handle = annotations.clone();
+    // Single-selection from the sidebar list; marks only the clicked row as selected.
     ui.on_select_annotation(move |index| {
         let count = annotations_handle.row_count();
         for i in 0..count {
@@ -189,6 +368,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let annotations_handle = annotations.clone();
+    // Clear selection when the canvas is clicked with no modifier.
     ui.on_deselect_all(move || {
         let count = annotations_handle.row_count();
         for i in 0..count {
@@ -198,6 +378,46 @@ fn main() -> Result<(), slint::PlatformError> {
                 annotations_handle.set_row_data(i, data);
             }
         }
+    });
+
+    // Dataset navigation callbacks
+    let loader_next = loader.clone();
+    let ds_state_next = dataset_state.clone();
+    ui.on_next_image(move || {
+        // Drop the immutable borrow before calling the loader (which mutably borrows)
+        let next_idx = {
+            let ds_ref = ds_state_next.borrow();
+            let Some(ds) = ds_ref.as_ref() else { return; };
+            if ds.entries.is_empty() {
+                return;
+            }
+            let mut idx = ds.current_index;
+            if idx + 1 < ds.entries.len() {
+                idx += 1;
+            }
+            idx
+        };
+
+        loader_next(next_idx);
+    });
+
+    let loader_prev = loader.clone();
+    let ds_state_prev = dataset_state.clone();
+    ui.on_prev_image(move || {
+        let prev_idx = {
+            let ds_ref = ds_state_prev.borrow();
+            let Some(ds) = ds_ref.as_ref() else { return; };
+            if ds.entries.is_empty() {
+                return;
+            }
+            if ds.current_index == 0 {
+                0
+            } else {
+                ds.current_index - 1
+            }
+        };
+
+        loader_prev(prev_idx);
     });
 
     ui.on_log_debug(move |msg| {
@@ -214,6 +434,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // Drawing callbacks
     let ui_handle = ui.as_weak();
     let draw_state_handle = draw_state.clone();
+    // Begin box/point drawing: remember anchor and show live preview rectangle.
     ui.on_start_drawing(move |x, y| {
         let mut state = draw_state_handle.borrow_mut();
         state.start_x = x;
@@ -249,6 +470,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui_handle = ui.as_weak();
     let annotations_handle = annotations.clone();
     let draw_state_handle = draw_state.clone();
+    // Finalize a bbox or point when the mouse button is released.
     ui.on_finish_drawing(move |x, y| {
         let mut state = draw_state_handle.borrow_mut();
 
@@ -313,8 +535,8 @@ fn main() -> Result<(), slint::PlatformError> {
     // Delete annotation callback (for Q+click)
     let ui_handle = ui.as_weak();
     let annotations_handle = annotations.clone();
+    // Q + click: remove the topmost annotation under the cursor.
     ui.on_delete_annotation_at(move |x, y| {
-        // Find annotation at this position and delete it
         let count = annotations_handle.row_count();
         for i in (0..count).rev() {
             // Reverse to get topmost first
@@ -413,6 +635,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // Auto-resize (stub) callbacks
     let annotations_handle = annotations.clone();
     let ui_handle = ui.as_weak();
+    // Auto-resize stub: adjust the first box under cursor using heuristics (pinch/edge gestures).
     ui.on_auto_resize_annotation(move |img_x, img_y, gesture_kind| {
         let count = annotations_handle.row_count();
         let mut target_index: Option<usize> = None;
@@ -436,7 +659,7 @@ fn main() -> Result<(), slint::PlatformError> {
         if let Some(idx) = target_index {
             if let Some(mut ann) = annotations_handle.row_data(idx) {
                 if let Some((new_x, new_y, new_w, new_h)) =
-                    auto_resize_stub(&ann, gesture_kind.as_str(), image_dimensions)
+                    auto_resize_stub(&ann, gesture_kind.as_str(), *image_dimensions.borrow())
                 {
                     ann.x = new_x;
                     ann.y = new_y;
@@ -458,7 +681,7 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
-    // Polygon creation callbacks
+    // Polygon creation callbacks: collect vertices while S is held, then commit to an annotation.
     let ui_handle = ui.as_weak();
     let draw_state_handle = draw_state.clone();
     ui.on_add_polygon_vertex(move |x, y| {
@@ -603,6 +826,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // Resize callbacks
     let annotations_handle = annotations.clone();
     let resize_state_handle = resize_state.clone();
+    // When a resize handle is grabbed, remember original bounds so deltas can be applied.
     ui.on_start_resize(move |index, handle_type| {
         if let Some(ann) = annotations_handle.row_data(index as usize) {
             let mut state = resize_state_handle.borrow_mut();
