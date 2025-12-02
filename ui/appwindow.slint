@@ -37,6 +37,7 @@ export component AppWindow inherits Window {
     in-out property <int> current-class: 1;
     in-out property <bool> q-key-held: false;
     in-out property <bool> digit-key-held: false;  // True when any digit 1-5 is held
+    in-out property <bool> a-key-held: false;      // Track A key for auto-resize gesture
 
     // Phase 4: Drawing preview
     in-out property <bool> show-preview: false;
@@ -69,6 +70,7 @@ export component AppWindow inherits Window {
     callback delete-annotation(int); // Delete annotation by index
     callback classify-at(float, float, int);  // Image coords + class
     callback classify-selected(int);  // Reclassify currently selected annotation(s)
+    callback auto-resize-annotation(float, float, string); // (img-x, img-y, gesture-kind)
     callback add-polygon-vertex(float, float);  // Add vertex to current polygon
     callback finish-polygon();  // Complete and create polygon annotation
     callback cancel-polygon();  // Cancel polygon creation
@@ -145,8 +147,14 @@ export component AppWindow inherits Window {
                     pointer-event(event) => {
                         if (event.button == PointerEventButton.left) {
                             if (event.kind == PointerEventKind.down) {
+                                // Auto-resize gesture: A + click anywhere in image
+                                if (root.a-key-held) {
+                                    let img-x = (self.mouse-x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                    let img-y = (self.mouse-y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                    root.auto-resize-annotation(img-x, img-y, "AClick");
+                                }
                                 // Check if polygon mode is active
-                                if (root.polygon-mode-active) {
+                                else if (root.polygon-mode-active) {
                                     // Add vertex to polygon - convert screen to image coords
                                     let img-x = (self.mouse-x - image-container.pan-x) / image-container.zoom-level / 1px;
                                     let img-y = (self.mouse-y - image-container.pan-y) / image-container.zoom-level / 1px;
@@ -661,7 +669,12 @@ export component AppWindow inherits Window {
                         width: annotation-rect.sel-w;
                         height: annotation-rect.sel-h;
                         clicked => {
-                            if (root.q-key-held) {
+                            if (root.a-key-held) {
+                                // Auto-resize gesture directly on annotation hit area
+                                let img-x = (self.mouse-x + self.x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                let img-y = (self.mouse-y + self.y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                root.auto-resize-annotation(img-x, img-y, "AClick");
+                            } else if (root.q-key-held) {
                                 // Delete mode
                                 root.delete-annotation(index);
                             } else if (root.digit-key-held) {
@@ -718,6 +731,10 @@ export component AppWindow inherits Window {
             }
             else if (event.text == "c" || event.text == "C") {
                             root.current-tool = "Point (C)";
+                            accept
+                        }
+                        else if (event.text == "a" || event.text == "A") {
+                            root.a-key-held = true;
                             accept
                         }
                         else if (event.text == "s" || event.text == "S") {
@@ -783,6 +800,10 @@ export component AppWindow inherits Window {
                 if (event.text == "b" || event.text == "B" ||
                     event.text == "c" || event.text == "C") {
                     root.current-tool = "Neutral";
+                    accept
+                }
+                else if (event.text == "a" || event.text == "A") {
+                    root.a-key-held = false;
                     accept
                 }
                 else if (event.text == "s" || event.text == "S") {
