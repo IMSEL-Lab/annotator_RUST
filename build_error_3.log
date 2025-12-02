@@ -1,0 +1,231 @@
+   Compiling annotator v0.1.0 (/Users/jacobvaught/RUST/annotator)
+error: failed to run custom build command for `annotator v0.1.0 (/Users/jacobvaught/RUST/annotator)`
+
+Caused by:
+  process didn't exit successfully: `/Users/jacobvaught/RUST/annotator/target/debug/build/annotator-ae3f39908ea609ca/build-script-build` (exit status: 101)
+  --- stderr
+  error: Unknown property id in Rectangle
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:84:21
+      |
+  84  |                     id: annotation-rect;
+      |                     ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:84:25
+      |
+  84  |                     id: annotation-rect;
+      |                         ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:107:28
+      |
+  107 |                         x: annotation-rect.screen-x - 5px;
+      |                            ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:108:28
+      |
+  108 |                         y: annotation-rect.screen-y - 5px;
+      |                            ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122:32
+      |
+  122 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122:55
+      |
+  122 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                       ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122:76
+      |
+  122 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                            ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122:103
+      |
+  122 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                                                       ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122:124
+      |
+  122 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                                                                            ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123:32
+      |
+  123 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123:55
+      |
+  123 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                       ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123:76
+      |
+  123 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                            ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123:103
+      |
+  123 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                                                       ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123:124
+      |
+  123 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                                                                            ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126:32
+      |
+  126 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126:54
+      |
+  126 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                      ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126:75
+      |
+  126 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                           ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126:102
+      |
+  126 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                                                      ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126:123
+      |
+  126 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - -annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                                                                           ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127:32
+      |
+  127 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127:54
+      |
+  127 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                      ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127:75
+      |
+  127 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                           ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127:102
+      |
+  127 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                                                      ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127:123
+      |
+  127 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + -annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                                                                           ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130:32
+      |
+  130 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130:54
+      |
+  130 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                      ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130:75
+      |
+  130 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                           ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130:101
+      |
+  130 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                                                     ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130:122
+      |
+  130 |                             x: annotation-rect.cx + (annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                                                                          ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131:32
+      |
+  131 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131:54
+      |
+  131 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                      ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131:75
+      |
+  131 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                           ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131:101
+      |
+  131 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                                                     ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131:122
+      |
+  131 |                             y: annotation-rect.cy + (annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                                                                          ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134:32
+      |
+  134 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134:55
+      |
+  134 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                       ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134:76
+      |
+  134 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                            ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134:102
+      |
+  134 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                                                      ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134:123
+      |
+  134 |                             x: annotation-rect.cx + (-annotation-rect.hw * annotation-rect.cos-rot - annotation-rect.hh * annotation-rect.sin-rot);
+      |                                                                                                                           ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135:32
+      |
+  135 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135:55
+      |
+  135 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                       ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135:76
+      |
+  135 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                            ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135:102
+      |
+  135 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                                                      ^
+  error: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction
+     --> /Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135:123
+      |
+  135 |                             y: annotation-rect.cy + (-annotation-rect.hw * annotation-rect.sin-rot + annotation-rect.hh * annotation-rect.cos-rot);
+      |                                                                                                                           ^
+
+
+  thread 'main' panicked at build.rs:2:48:
+  called `Result::unwrap()` on an `Err` value: CompileError(["/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:84: Unknown property id in Rectangle", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:84: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:107: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:108: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:122: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:123: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:126: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:127: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:130: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:131: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:134: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction", "/Users/jacobvaught/RUST/annotator/ui/appwindow.slint:135: Unknown unqualified identifier 'annotation-rect'. Use space before the '-' if you meant a subtraction"])
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

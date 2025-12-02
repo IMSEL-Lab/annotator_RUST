@@ -1,12 +1,27 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 
+struct Annotation {
+    id: int,
+    type: string,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    rotation: float,
+    selected: bool,
+}
+
 export component AppWindow inherits Window {
     title: "Annotator v0";
     min-width: 800px;
     min-height: 600px;
 
     in property <string> status-text: "Ready";
+    callback log-debug(string);
     in property <image> image-source;
+    in property <[Annotation]> annotations;
+    callback select-annotation(int);
+    callback deselect-all();
 
     VerticalBox {
         preferred-width: 1200px;
@@ -45,7 +60,7 @@ export component AppWindow inherits Window {
             }
 
             // Central Canvas
-            viewport := Rectangle {
+            image-container := Rectangle {
                 background: #222222;
                 clip: true;
 
@@ -58,10 +73,10 @@ export component AppWindow inherits Window {
 
                 Image {
                     source: root.image-source;
-                    x: parent.pan-x;
-                    y: parent.pan-y;
-                    width: self.source.width * 1px * parent.zoom-level;
-                    height: self.source.height * 1px * parent.zoom-level;
+                    x: image-container.pan-x;
+                    y: image-container.pan-y;
+                    width: self.source.width * 1px * image-container.zoom-level;
+                    height: self.source.height * 1px * image-container.zoom-level;
                 }
 
                 TouchArea {
@@ -73,21 +88,22 @@ export component AppWindow inherits Window {
 
                     pointer-event(event) => {
                         if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
-                            self.start-pan-x = parent.pan-x;
-                            self.start-pan-y = parent.pan-y;
+                            self.start-pan-x = image-container.pan-x;
+                            self.start-pan-y = image-container.pan-y;
+                            root.deselect-all();
                         }
                     }
 
                     moved => {
                         if (self.pressed) {
-                            parent.pan-x = self.start-pan-x + (self.mouse-x - self.pressed-x);
-                            parent.pan-y = self.start-pan-y + (self.mouse-y - self.pressed-y);
+                            image-container.pan-x = self.start-pan-x + (self.mouse-x - self.pressed-x);
+                            image-container.pan-y = self.start-pan-y + (self.mouse-y - self.pressed-y);
                         }
                     }
 
                     scroll-event(event) => {
                         if (event.delta-y != 0) {
-                            let old-zoom = parent.zoom-level;
+                            let old-zoom = image-container.zoom-level;
                             let zoom-factor = 1.1;
                             let next-zoom = event.delta-y > 0 ? old-zoom * zoom-factor : old-zoom / zoom-factor;
                             
@@ -95,16 +111,86 @@ export component AppWindow inherits Window {
                             let clamped-zoom = max(0.1, min(next-zoom, 10.0));
                             
                             // Zoom centered on cursor
-                            let mouse-x-rel = self.mouse-x - parent.pan-x;
-                            let mouse-y-rel = self.mouse-y - parent.pan-y;
+                            let mouse-x-rel = self.mouse-x - image-container.pan-x;
+                            let mouse-y-rel = self.mouse-y - image-container.pan-y;
                             
-                            parent.pan-x = self.mouse-x - mouse-x-rel * (clamped-zoom / old-zoom);
-                            parent.pan-y = self.mouse-y - mouse-y-rel * (clamped-zoom / old-zoom);
+                            image-container.pan-x = self.mouse-x - mouse-x-rel * (clamped-zoom / old-zoom);
+                            image-container.pan-y = self.mouse-y - mouse-y-rel * (clamped-zoom / old-zoom);
                             
-                            parent.zoom-level = clamped-zoom;
+                            image-container.zoom-level = clamped-zoom;
                             return accept;
                         }
                         reject
+                    }
+                }
+
+                // Annotation Overlay
+                for annotation[index] in root.annotations : annotation-rect := Rectangle {
+                    background: #00000000; // Transparent
+                    width: 100%;
+                    height: 100%;
+                    
+                    // Calculate screen coordinates
+                    property <length> screen-x: image-container.pan-x + (annotation.x * 1px * image-container.zoom-level);
+                    property <length> screen-y: image-container.pan-y + (annotation.y * 1px * image-container.zoom-level);
+                    property <length> screen-w: annotation.width * 1px * image-container.zoom-level;
+                    property <length> screen-h: annotation.height * 1px * image-container.zoom-level;
+                    
+                    // Rotation properties
+                    property <angle> rot: annotation.rotation * 1deg;
+                    
+                    // Center and Half-dims
+                    property <length> cx: self.screen-x + self.screen-w / 2;
+                    property <length> cy: self.screen-y + self.screen-h / 2;
+
+                    // Selection Bounding Box (for TouchArea)
+                    property <length> sel-w: annotation.type == "point" ? 20px : self.screen-w;
+                    property <length> sel-h: annotation.type == "point" ? 20px : self.screen-h;
+
+                    // Point (Circle)
+                    Rectangle {
+                        visible: annotation.type == "point";
+                        x: annotation-rect.screen-x - 5px;
+                        y: annotation-rect.screen-y - 5px;
+                        width: 10px;
+                        height: 10px;
+                        border-radius: 5px;
+                        background: annotation.selected ? #00FF00 : #FF0000;
+                    }
+
+                    // Standard BBox (Rectangle)
+                    Rectangle {
+                        visible: annotation.type == "bbox";
+                        x: annotation-rect.screen-x;
+                        y: annotation-rect.screen-y;
+                        width: annotation-rect.screen-w;
+                        height: annotation-rect.screen-h;
+                        border-width: 2px;
+                        border-color: annotation.selected ? #00FF00 : #FF0000;
+                        background: #00000000;
+                    }
+
+                    // Rotated BBox (using transform-rotation)
+                    Rectangle {
+                        visible: annotation.type == "rbbox";
+                        x: annotation-rect.screen-x;
+                        y: annotation-rect.screen-y;
+                        width: annotation-rect.screen-w;
+                        height: annotation-rect.screen-h;
+                        border-width: 2px;
+                        border-color: annotation.selected ? #00FF00 : #FF0000;
+                        background: #00000000;
+                        transform-rotation: annotation-rect.rot;
+                    }
+
+                    TouchArea {
+                        x: annotation-rect.cx - annotation-rect.sel-w / 2;
+                        y: annotation-rect.cy - annotation-rect.sel-h / 2;
+                        width: annotation-rect.sel-w;
+                        height: annotation-rect.sel-h;
+                        clicked => {
+                            root.select-annotation(index);
+                        }
                     }
                 }
             }
