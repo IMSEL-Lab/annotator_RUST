@@ -1,5 +1,10 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 
+struct PolygonVertex {
+    x: float,
+    y: float,
+}
+
 struct Annotation {
     id: int,
     type: string,
@@ -9,6 +14,10 @@ struct Annotation {
     height: float,
     rotation: float,
     selected: bool,
+    class: int,  // Classification: 1-999 for multi-digit support
+    vertices: string,  // For polygons: "x1,y1;x2,y2;x3,y3" format
+    polygon-vertices: [PolygonVertex],  // Parsed vertices for rendering
+    polygon-path-commands: string,  // SVG path commands for rendering edges
 }
 
 export component AppWindow inherits Window {
@@ -22,6 +31,44 @@ export component AppWindow inherits Window {
     in property <[Annotation]> annotations;
     callback select-annotation(int);
     callback deselect-all();
+
+    // Phase 4: Tool state and input
+    in-out property <string> current-tool: "Neutral";
+    in-out property <int> current-class: 1;
+    in-out property <bool> q-key-held: false;
+    in-out property <bool> digit-key-held: false;  // True when any digit 1-5 is held
+
+    // Phase 4: Drawing preview
+    in-out property <bool> show-preview: false;
+    in-out property <float> preview-x;
+    in-out property <float> preview-y;
+    in-out property <float> preview-width;
+    in-out property <float> preview-height;
+
+    // Phase 4: Polygon mode
+    in-out property <bool> polygon-mode-active: false;
+    in-out property <bool> s-key-held: false;  // Track S key hold for polygon workflow
+    in-out property <bool> added-vertex-while-holding-s: false;  // Track if hold-and-click workflow
+    in-out property <string> polygon-preview-vertices: "";  // Current vertices being collected
+    in-out property <string> polygon-preview-path: "";  // SVG path for preview lines
+
+    // Helper to generate SVG path commands from vertices string
+    pure function generate-polygon-path(vertices-str: string) -> string {
+        // This will be populated from Rust with proper SVG path commands
+        vertices-str
+    }
+
+    // Phase 4: Callbacks for tool actions
+    callback start-drawing(float, float);  // Mouse press in image coords
+    callback update-drawing(float, float); // Mouse move in image coords
+    callback finish-drawing(float, float); // Mouse release in image coords
+    callback cancel-drawing();
+    callback delete-annotation-at(float, float); // Image coords
+    callback delete-annotation(int); // Delete annotation by index
+    callback classify-at(float, float, int);  // Image coords + class
+    callback add-polygon-vertex(float, float);  // Add vertex to current polygon
+    callback finish-polygon();  // Complete and create polygon annotation
+    callback cancel-polygon();  // Cancel polygon creation
 
     VerticalBox {
         preferred-width: 1200px;
@@ -82,20 +129,62 @@ export component AppWindow inherits Window {
                 TouchArea {
                     width: 100%;
                     height: 100%;
-                    
+
                     property <length> start-pan-x;
                     property <length> start-pan-y;
+                    property <bool> is-drawing: false;
 
                     pointer-event(event) => {
-                        if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
-                            self.start-pan-x = image-container.pan-x;
-                            self.start-pan-y = image-container.pan-y;
-                            root.deselect-all();
+                        if (event.button == PointerEventButton.left) {
+                            if (event.kind == PointerEventKind.down) {
+                                // Check if polygon mode is active
+                                if (root.polygon-mode-active) {
+                                    // Add vertex to polygon - convert screen to image coords
+                                    let img-x = (self.mouse-x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                    let img-y = (self.mouse-y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                    root.add-polygon-vertex(img-x, img-y);
+                                    // Track if we're in hold-and-click workflow
+                                    if (root.s-key-held) {
+                                        root.added-vertex-while-holding-s = true;
+                                    }
+                                }
+                                // Check if a drawing tool is active
+                                else if (root.current-tool != "Neutral") {
+                                    // Start drawing - convert screen to image coords
+                                    let img-x = (self.mouse-x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                    let img-y = (self.mouse-y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                    root.start-drawing(img-x, img-y);
+                                    self.is-drawing = true;
+                                } else if (root.q-key-held) {
+                                    // Delete mode - convert coords and trigger delete
+                                    let img-x = (self.mouse-x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                    let img-y = (self.mouse-y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                    root.delete-annotation-at(img-x, img-y);
+                                } else {
+                                    // Normal pan behavior
+                                    self.start-pan-x = image-container.pan-x;
+                                    self.start-pan-y = image-container.pan-y;
+                                    root.deselect-all();
+                                }
+                            }
+                            else if (event.kind == PointerEventKind.up && self.is-drawing) {
+                                // Finish drawing
+                                let img-x = (self.mouse-x - image-container.pan-x) / image-container.zoom-level / 1px;
+                                let img-y = (self.mouse-y - image-container.pan-y) / image-container.zoom-level / 1px;
+                                root.finish-drawing(img-x, img-y);
+                                self.is-drawing = false;
+                            }
                         }
                     }
 
                     moved => {
-                        if (self.pressed) {
+                        if (self.pressed && self.is-drawing) {
+                            // Update drawing preview
+                            let img-x = (self.mouse-x - image-container.pan-x) / image-container.zoom-level / 1px;
+                            let img-y = (self.mouse-y - image-container.pan-y) / image-container.zoom-level / 1px;
+                            root.update-drawing(img-x, img-y);
+                        } else if (self.pressed && root.current-tool == "Neutral" && !root.q-key-held) {
+                            // Pan behavior
                             image-container.pan-x = self.start-pan-x + (self.mouse-x - self.pressed-x);
                             image-container.pan-y = self.start-pan-y + (self.mouse-y - self.pressed-y);
                         }
@@ -121,6 +210,57 @@ export component AppWindow inherits Window {
                             return accept;
                         }
                         reject
+                    }
+                }
+
+                // Preview rectangle while drawing
+                if root.show-preview : Rectangle {
+                    x: image-container.pan-x + (root.preview-x * 1px * image-container.zoom-level);
+                    y: image-container.pan-y + (root.preview-y * 1px * image-container.zoom-level);
+                    width: root.preview-width * 1px * image-container.zoom-level;
+                    height: root.preview-height * 1px * image-container.zoom-level;
+                    border-width: 2px;
+                    border-color: #00FFFF;  // Cyan for preview
+                    background: #00FFFF20;  // Translucent cyan
+                }
+
+                // Polygon mode indicator
+                if root.polygon-mode-active : Rectangle {
+                    x: 10px;
+                    y: 50px;
+                    width: 280px;
+                    height: 40px;
+                    background: #FF00FF;
+                    border-radius: 5px;
+
+                    Text {
+                        text: "POLYGON MODE - Click vertices, Tab/S to finish, Q/Esc to cancel";
+                        color: white;
+                        font-size: 10px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Polygon preview - show lines as vertices are being added
+                if root.polygon-mode-active && root.polygon-preview-path != "" : Rectangle {
+                    background: #00000000;
+                    width: 100%;
+                    height: 100%;
+
+                    Path {
+                        viewbox-width: root.image-source.width;
+                        viewbox-height: root.image-source.height;
+                        x: image-container.pan-x;
+                        y: image-container.pan-y;
+                        width: root.image-source.width * 1px * image-container.zoom-level;
+                        height: root.image-source.height * 1px * image-container.zoom-level;
+
+                        stroke: #FFFF00;  // Yellow for preview
+                        stroke-width: 2px;
+                        fill: transparent;
+
+                        commands: root.polygon-preview-path;
                     }
                 }
 
@@ -183,13 +323,78 @@ export component AppWindow inherits Window {
                         transform-rotation: annotation-rect.rot;
                     }
 
-                    TouchArea {
+                    // Polygon rendering - draw actual connected edges
+                    if annotation.type == "polygon" && annotation.polygon-path-commands != "" : Rectangle {
+                        background: #00000000;
+                        width: 100%;
+                        height: 100%;
+
+                        // Draw polygon with actual edges using Path
+                        Path {
+                            viewbox-width: root.image-source.width;
+                            viewbox-height: root.image-source.height;
+                            x: image-container.pan-x;
+                            y: image-container.pan-y;
+                            width: root.image-source.width * 1px * image-container.zoom-level;
+                            height: root.image-source.height * 1px * image-container.zoom-level;
+
+                            stroke: annotation.selected ? #00FF00 : #FF00FF;
+                            stroke-width: 3px;
+                            fill: #FF00FF20;  // Translucent magenta fill
+
+                            // Use dynamically generated SVG path commands
+                            commands: annotation.polygon-path-commands;
+                        }
+
+                        // Draw vertex dots for clarity
+                        for vertex in annotation.polygon-vertices : Rectangle {
+                            x: image-container.pan-x + (vertex.x * 1px * image-container.zoom-level) - 5px;
+                            y: image-container.pan-y + (vertex.y * 1px * image-container.zoom-level) - 5px;
+                            width: 10px;
+                            height: 10px;
+                            border-radius: 5px;
+                            background: annotation.selected ? #00FF00 : #FF00FF;
+                        }
+                    }
+
+                    // Class label (shows class number)
+                    Rectangle {
+                        x: annotation-rect.screen-x;
+                        y: annotation-rect.screen-y - 20px;
+                        width: 30px;
+                        height: 18px;
+                        background: annotation.selected ? #00FF00 : #FF0000;
+                        border-radius: 3px;
+
+                        Text {
+                            text: annotation.class;
+                            color: #000000;
+                            font-size: 12px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Only intercept clicks when NOT in polygon mode
+                    if !root.polygon-mode-active : TouchArea {
                         x: annotation-rect.cx - annotation-rect.sel-w / 2;
                         y: annotation-rect.cy - annotation-rect.sel-h / 2;
                         width: annotation-rect.sel-w;
                         height: annotation-rect.sel-h;
                         clicked => {
-                            root.select-annotation(index);
+                            if (root.q-key-held) {
+                                // Delete mode
+                                root.delete-annotation(index);
+                            } else if (root.digit-key-held) {
+                                // Reclassify mode - change annotation's class
+                                root.classify-at(annotation.x, annotation.y, root.current-class);
+                            } else {
+                                // Normal mode - select annotation
+                                root.select-annotation(index);
+                            }
+                        }
+                        double-clicked => {
+                            root.delete-annotation(index);
                         }
                     }
                 }
@@ -200,13 +405,124 @@ export component AppWindow inherits Window {
         Rectangle {
             height: 30px;
             background: #333333;
-            Text {
-                text: root.status-text;
-                color: white;
-                font-size: 12px;
-                x: 10px;
-                vertical-alignment: center;
+            HorizontalLayout {
+                padding: 5px;
+                spacing: 20px;
+                Text {
+                    text: root.status-text;
+                    color: white;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: "Tool: " + root.current-tool;
+                    color: root.current-tool == "Neutral" ? #888888 : #00FF00;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: "Class: " + root.current-class;
+                    color: #FFAA00;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
             }
+        }
+    }
+
+    // Keyboard handler (must be at root level)
+    FocusScope {
+        key-pressed(event) => {
+            if (event.text == "b" || event.text == "B") {
+                root.current-tool = "BBox (B)";
+                accept
+            }
+            else if (event.text == "c" || event.text == "C") {
+                root.current-tool = "Point (C)";
+                accept
+            }
+            else if (event.text == "s" || event.text == "S") {
+                // S key press: enter polygon mode or prepare for hold-and-click
+                if (!root.polygon-mode-active) {
+                    root.polygon-mode-active = true;
+                    root.current-tool = "Polygon (S)";
+                }
+                // Reset the hold-and-click flag
+                root.added-vertex-while-holding-s = false;
+                root.s-key-held = true;
+                accept
+            }
+            else if (event.text == "q" || event.text == "Q") {
+                // Cancel polygon if in mode, otherwise hold for delete
+                if (root.polygon-mode-active) {
+                    root.cancel-polygon();
+                } else {
+                    root.q-key-held = true;
+                }
+                accept
+            }
+            else if (event.text == "1") { root.current-class = 1; root.digit-key-held = true; accept }
+            else if (event.text == "2") { root.current-class = 2; root.digit-key-held = true; accept }
+            else if (event.text == "3") { root.current-class = 3; root.digit-key-held = true; accept }
+            else if (event.text == "4") { root.current-class = 4; root.digit-key-held = true; accept }
+            else if (event.text == "5") { root.current-class = 5; root.digit-key-held = true; accept }
+            else if (event.text == "\n") {
+                // Enter key - finish polygon
+                if (root.polygon-mode-active) {
+                    root.finish-polygon();
+                    accept
+                }
+                reject
+            }
+            else if (event.text == "\u{0009}") {
+                // Tab key - finish polygon
+                if (root.polygon-mode-active) {
+                    root.finish-polygon();
+                    accept
+                }
+                reject
+            }
+            else if (event.text == "\u{001b}") {
+                // Escape key - cancel polygon or exit polygon mode
+                if (root.polygon-mode-active) {
+                    root.cancel-polygon();
+                }
+                accept
+            }
+            reject
+        }
+
+        key-released(event) => {
+            if (event.text == "b" || event.text == "B" ||
+                event.text == "c" || event.text == "C") {
+                root.current-tool = "Neutral";
+                accept
+            }
+            else if (event.text == "s" || event.text == "S") {
+                // S key release: check if this was hold-and-click workflow or tap workflow
+                if (root.polygon-mode-active && root.added-vertex-while-holding-s) {
+                    // Hold-and-click workflow: finish polygon and EXIT mode
+                    root.finish-polygon();
+                } else if (root.polygon-mode-active && root.s-key-held) {
+                    // Tap workflow: finish polygon and STAY in mode
+                    root.finish-polygon();
+                    root.polygon-mode-active = true;
+                    root.current-tool = "Polygon (S)";
+                }
+                root.s-key-held = false;
+                root.added-vertex-while-holding-s = false;
+                accept
+            }
+            else if (event.text == "q" || event.text == "Q") {
+                root.q-key-held = false;
+                accept
+            }
+            else if (event.text == "1" || event.text == "2" || event.text == "3" ||
+                     event.text == "4" || event.text == "5") {
+                root.digit-key-held = false;
+                accept
+            }
+            reject
         }
     }
 }

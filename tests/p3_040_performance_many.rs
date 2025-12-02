@@ -29,6 +29,10 @@ fn main() -> Result<(), slint::PlatformError> {
             height: 40.0,
             rotation: 0.0,
             selected: false,
+            class: 1,
+            vertices: "".into(),
+            polygon_vertices: Default::default(),
+            polygon_path_commands: "".into(),
         });
     }
 
