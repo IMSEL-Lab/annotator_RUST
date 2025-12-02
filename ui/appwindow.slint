@@ -6,6 +6,7 @@ export component AppWindow inherits Window {
     min-height: 600px;
 
     in property <string> status-text: "Ready";
+    in property <image> image-source;
 
     VerticalBox {
         preferred-width: 1200px;
@@ -43,14 +44,68 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // Central Canvas Placeholder
-            Rectangle {
+            // Central Canvas
+            viewport := Rectangle {
                 background: #222222;
-                Text {
-                    text: "Canvas Placeholder";
-                    color: #888888;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                clip: true;
+
+                property <float> fit-scale: (root.image-source.width > 0 && root.image-source.height > 0) ? 
+                    min(self.width / (root.image-source.width * 1px), self.height / (root.image-source.height * 1px)) : 1.0;
+
+                in-out property <float> zoom-level: fit-scale;
+                in-out property <length> pan-x: (self.width - (root.image-source.width * 1px * self.zoom-level)) / 2;
+                in-out property <length> pan-y: (self.height - (root.image-source.height * 1px * self.zoom-level)) / 2;
+
+                Image {
+                    source: root.image-source;
+                    x: parent.pan-x;
+                    y: parent.pan-y;
+                    width: self.source.width * 1px * parent.zoom-level;
+                    height: self.source.height * 1px * parent.zoom-level;
+                }
+
+                TouchArea {
+                    width: 100%;
+                    height: 100%;
+                    
+                    property <length> start-pan-x;
+                    property <length> start-pan-y;
+
+                    pointer-event(event) => {
+                        if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                            self.start-pan-x = parent.pan-x;
+                            self.start-pan-y = parent.pan-y;
+                        }
+                    }
+
+                    moved => {
+                        if (self.pressed) {
+                            parent.pan-x = self.start-pan-x + (self.mouse-x - self.pressed-x);
+                            parent.pan-y = self.start-pan-y + (self.mouse-y - self.pressed-y);
+                        }
+                    }
+
+                    scroll-event(event) => {
+                        if (event.delta-y != 0) {
+                            let old-zoom = parent.zoom-level;
+                            let zoom-factor = 1.1;
+                            let next-zoom = event.delta-y > 0 ? old-zoom * zoom-factor : old-zoom / zoom-factor;
+                            
+                            // Clamp zoom
+                            let clamped-zoom = max(0.1, min(next-zoom, 10.0));
+                            
+                            // Zoom centered on cursor
+                            let mouse-x-rel = self.mouse-x - parent.pan-x;
+                            let mouse-y-rel = self.mouse-y - parent.pan-y;
+                            
+                            parent.pan-x = self.mouse-x - mouse-x-rel * (clamped-zoom / old-zoom);
+                            parent.pan-y = self.mouse-y - mouse-y-rel * (clamped-zoom / old-zoom);
+                            
+                            parent.zoom-level = clamped-zoom;
+                            return accept;
+                        }
+                        reject
+                    }
                 }
             }
         }

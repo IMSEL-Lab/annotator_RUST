@@ -3,6 +3,11 @@ slint::include_modules!();
 fn main() -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
 
+    // Load test image
+    let image_path = std::path::PathBuf::from("/Users/jacobvaught/RUST/images/wide.jpeg");
+    let image = slint::Image::load_from_path(&image_path).expect("Failed to load test image");
+    ui.set_image_source(image);
+
     // P0-005: Rust-to-UI property binding (static)
     // We can set the initial property here if we want to override the default "Ready"
     // ui.set_status_text("Phase 0 test".into()); 
