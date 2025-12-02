@@ -31,6 +31,8 @@ export component AppWindow inherits Window {
     in property <[Annotation]> annotations;
     callback select-annotation(int);
     callback deselect-all();
+    callback next-image();
+    callback prev-image();
 
     // Phase 4: Tool state and input
     in-out property <string> current-tool: "Neutral";
@@ -38,6 +40,8 @@ export component AppWindow inherits Window {
     in-out property <bool> q-key-held: false;
     in-out property <bool> digit-key-held: false;  // True when any digit 1-5 is held
     in-out property <bool> a-key-held: false;      // Track A key for auto-resize gesture
+    in-out property <string> current-image-name: "";
+    in-out property <string> dataset-position: ""; // e.g., "1 / 3"
 
     // Phase 4: Drawing preview
     in-out property <bool> show-preview: false;
@@ -90,12 +94,77 @@ export component AppWindow inherits Window {
         Rectangle {
             height: 40px;
             background: #333333;
-            Text {
-                text: "Annotator";
-                color: white;
-                font-size: 16px;
-                x: 10px;
-                vertical-alignment: center;
+            HorizontalLayout {
+                padding: 8px;
+                spacing: 12px;
+                Text {
+                    text: "Annotator";
+                    color: white;
+                    font-size: 16px;
+                    vertical-alignment: center;
+                }
+
+                Rectangle {
+                    width: 1px;
+                    height: 24px;
+                    background: #555555;
+                }
+
+                Text {
+                    text: root.dataset-position == "" ? "No dataset" : root.dataset-position;
+                    color: #AAAAAA;
+                    font-size: 14px;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: root.current-image-name;
+                    color: #CCCCCC;
+                    font-size: 14px;
+                    vertical-alignment: center;
+                    horizontal-alignment: left;
+                }
+
+                HorizontalLayout {
+                    spacing: 4px;
+                    Rectangle {
+                        width: 26px;
+                        height: 20px;
+                        background: #555555;
+                        border-radius: 3px;
+                        Text {
+                            text: "<";
+                            color: white;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        TouchArea {
+                            clicked => {
+                                root.prev-image();
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 26px;
+                        height: 20px;
+                        background: #555555;
+                        border-radius: 3px;
+                        Text {
+                            text: ">";
+                            color: white;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        TouchArea {
+                            clicked => {
+                                root.next-image();
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -121,8 +190,7 @@ export component AppWindow inherits Window {
                 background: #222222;
                 clip: true;
 
-                property <float> fit-scale: (root.image-source.width > 0 && root.image-source.height > 0) ? 
-                    min(self.width / (root.image-source.width * 1px), self.height / (root.image-source.height * 1px)) : 1.0;
+                property <float> fit-scale: (root.image-source.width > 0 && root.image-source.height > 0) ? min(self.width / (root.image-source.width * 1px), self.height / (root.image-source.height * 1px)) : 1.0;
 
                 in-out property <float> zoom-level: fit-scale;
                 in-out property <length> pan-x: (self.width - (root.image-source.width * 1px * self.zoom-level)) / 2;
@@ -178,8 +246,7 @@ export component AppWindow inherits Window {
                                     self.start-pan-y = image-container.pan-y;
                                     root.deselect-all();
                                 }
-                            }
-                            else if (event.kind == PointerEventKind.up && self.is-drawing) {
+                            } else if (event.kind == PointerEventKind.up && self.is-drawing) {
                                 // Finish drawing
                                 let img-x = (self.mouse-x - image-container.pan-x) / image-container.zoom-level / 1px;
                                 let img-y = (self.mouse-y - image-container.pan-y) / image-container.zoom-level / 1px;
@@ -214,10 +281,8 @@ export component AppWindow inherits Window {
                             // Zoom centered on cursor
                             let mouse-x-rel = self.mouse-x - image-container.pan-x;
                             let mouse-y-rel = self.mouse-y - image-container.pan-y;
-                            
                             image-container.pan-x = self.mouse-x - mouse-x-rel * (clamped-zoom / old-zoom);
                             image-container.pan-y = self.mouse-y - mouse-y-rel * (clamped-zoom / old-zoom);
-                            
                             image-container.zoom-level = clamped-zoom;
                             return accept;
                         }
@@ -226,7 +291,7 @@ export component AppWindow inherits Window {
                 }
 
                 // Preview rectangle while drawing
-                if root.show-preview : Rectangle {
+                if root.show-preview: Rectangle {
                     x: image-container.pan-x + (root.preview-x * 1px * image-container.zoom-level);
                     y: image-container.pan-y + (root.preview-y * 1px * image-container.zoom-level);
                     width: root.preview-width * 1px * image-container.zoom-level;
@@ -237,7 +302,7 @@ export component AppWindow inherits Window {
                 }
 
                 // Polygon mode indicator
-                if root.polygon-mode-active : Rectangle {
+                if root.polygon-mode-active: Rectangle {
                     x: 10px;
                     y: 50px;
                     width: 280px;
@@ -255,7 +320,7 @@ export component AppWindow inherits Window {
                 }
 
                 // Polygon preview - show lines as vertices are being added
-                if root.polygon-mode-active && root.polygon-preview-path != "" : Rectangle {
+                if root.polygon-mode-active && root.polygon-preview-path != "": Rectangle {
                     background: #00000000;
                     width: 100%;
                     height: 100%;
@@ -277,7 +342,7 @@ export component AppWindow inherits Window {
                 }
 
                 // Annotation Overlay
-                for annotation[index] in root.annotations : annotation-rect := Rectangle {
+                for annotation[index] in root.annotations: annotation-rect := Rectangle {
                     background: #00000000; // Transparent
                     width: 100%;
                     height: 100%;
@@ -336,7 +401,7 @@ export component AppWindow inherits Window {
                     }
 
                     // Polygon rendering - draw actual connected edges
-                    if annotation.type == "polygon" && annotation.polygon-path-commands != "" : Rectangle {
+                    if annotation.type == "polygon" && annotation.polygon-path-commands != "": Rectangle {
                         background: #00000000;
                         width: 100%;
                         height: 100%;
@@ -359,7 +424,7 @@ export component AppWindow inherits Window {
                         }
 
                         // Draw vertex dots for clarity
-                        for vertex in annotation.polygon-vertices : Rectangle {
+                        for vertex in annotation.polygon-vertices: Rectangle {
                             x: image-container.pan-x + (vertex.x * 1px * image-container.zoom-level) - 5px;
                             y: image-container.pan-y + (vertex.y * 1px * image-container.zoom-level) - 5px;
                             width: 10px;
@@ -388,7 +453,7 @@ export component AppWindow inherits Window {
                     }
 
                     // Resize handles (only for selected bbox/rbbox, not in polygon mode)
-                    if annotation.selected && (annotation.type == "bbox" || annotation.type == "rbbox") && !root.polygon-mode-active : Rectangle {
+                    if annotation.selected && (annotation.type == "bbox" || annotation.type == "rbbox") && !root.polygon-mode-active: Rectangle {
                         property <length> handle-size: 8px;
                         property <length> half-handle: self.handle-size / 2;
                         background: #00000000;
@@ -663,7 +728,7 @@ export component AppWindow inherits Window {
                     }
 
                     // Only intercept clicks when NOT in polygon mode
-                    if !root.polygon-mode-active : TouchArea {
+                    if !root.polygon-mode-active: TouchArea {
                         x: annotation-rect.cx - annotation-rect.sel-w / 2;
                         y: annotation-rect.cy - annotation-rect.sel-h / 2;
                         width: annotation-rect.sel-w;
@@ -706,12 +771,14 @@ export component AppWindow inherits Window {
                     font-size: 12px;
                     vertical-alignment: center;
                 }
+
                 Text {
                     text: "Tool: " + root.current-tool;
                     color: root.current-tool == "Neutral" ? #888888 : #00FF00;
                     font-size: 12px;
                     vertical-alignment: center;
                 }
+
                 Text {
                     text: "Class: " + root.current-class;
                     color: #FFAA00;
@@ -728,25 +795,21 @@ export component AppWindow inherits Window {
             if (event.text == "b" || event.text == "B") {
                 root.current-tool = "BBox (B)";
                 accept
-            }
-            else if (event.text == "c" || event.text == "C") {
-                            root.current-tool = "Point (C)";
-                            accept
-                        }
-                        else if (event.text == "a" || event.text == "A") {
-                            root.a-key-held = true;
-                            accept
-                        }
-                        else if (event.text == "s" || event.text == "S") {
+            } else if (event.text == "c" || event.text == "C") {
+                root.current-tool = "Point (C)";
+                accept
+            } else if (event.text == "a" || event.text == "A") {
+                root.a-key-held = true;
+                accept
+            } else if (event.text == "s" || event.text == "S") {
                             // S key press: activate polygon mode while held
                             if (!root.polygon-mode-active) {
-                                root.polygon-mode-active = true;
-                                root.current-tool = "Polygon (Hold S)";
-                            }
-                            root.s-key-held = true;
-                            accept
-                        }
-                        else if (event.text == "q" || event.text == "Q") {
+                    root.polygon-mode-active = true;
+                    root.current-tool = "Polygon (Hold S)";
+                }
+                root.s-key-held = true;
+                accept
+            } else if (event.text == "q" || event.text == "Q") {
                             // Cancel polygon if in mode, otherwise hold for delete
                 if (root.polygon-mode-active) {
                     root.cancel-polygon();
@@ -754,13 +817,32 @@ export component AppWindow inherits Window {
                     root.q-key-held = true;
                 }
                 accept
-            }
-            else if (event.text == "1") { root.current-class = 1; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
-            else if (event.text == "2") { root.current-class = 2; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
-            else if (event.text == "3") { root.current-class = 3; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
-            else if (event.text == "4") { root.current-class = 4; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
-            else if (event.text == "5") { root.current-class = 5; root.classify-selected(root.current-class); root.digit-key-held = true; accept }
-            else if (event.text == "\n") {
+            } else if (event.text == "1") {
+                root.current-class = 1;
+                root.classify-selected(root.current-class);
+                root.digit-key-held = true;
+                accept
+            } else if (event.text == "2") {
+                root.current-class = 2;
+                root.classify-selected(root.current-class);
+                root.digit-key-held = true;
+                accept
+            } else if (event.text == "3") {
+                root.current-class = 3;
+                root.classify-selected(root.current-class);
+                root.digit-key-held = true;
+                accept
+            } else if (event.text == "4") {
+                root.current-class = 4;
+                root.classify-selected(root.current-class);
+                root.digit-key-held = true;
+                accept
+            } else if (event.text == "5") {
+                root.current-class = 5;
+                root.classify-selected(root.current-class);
+                root.digit-key-held = true;
+                accept
+            } else if (event.text == "\n") {
                 // Enter key - finish polygon
                 if (root.polygon-mode-active) {
                     root.finish-polygon();
@@ -772,8 +854,7 @@ export component AppWindow inherits Window {
                     accept
                 }
                 reject
-            }
-            else if (event.text == "\u{0009}") {
+            } else if (event.text == "\u{0009}") {
                 // Tab key - finish polygon
                 if (root.polygon-mode-active) {
                     root.finish-polygon();
@@ -785,8 +866,7 @@ export component AppWindow inherits Window {
                     accept
                 }
                 reject
-            }
-            else if (event.text == "\u{001b}") {
+            } else if (event.text == "\u{001b}") {
                 // Escape key - cancel polygon or exit polygon mode
                 if (root.polygon-mode-active) {
                     root.cancel-polygon();
@@ -796,32 +876,26 @@ export component AppWindow inherits Window {
             reject
         }
 
-            key-released(event) => {
-                if (event.text == "b" || event.text == "B" ||
-                    event.text == "c" || event.text == "C") {
-                    root.current-tool = "Neutral";
-                    accept
-                }
-                else if (event.text == "a" || event.text == "A") {
-                    root.a-key-held = false;
-                    accept
-                }
-                else if (event.text == "s" || event.text == "S") {
+        key-released(event) => {
+            if (event.text == "b" || event.text == "B" || event.text == "c" || event.text == "C") {
+                root.current-tool = "Neutral";
+                accept
+            } else if (event.text == "a" || event.text == "A") {
+                root.a-key-held = false;
+                accept
+            } else if (event.text == "s" || event.text == "S") {
                     // S key release: finish any in-progress polygon and exit mode
                     if (root.polygon-mode-active) {
-                        root.finish-polygon();
-                    }
-                    root.polygon-mode-active = false;
-                    root.current-tool = "Neutral";
-                    root.s-key-held = false;
-                    accept
+                    root.finish-polygon();
                 }
-                else if (event.text == "q" || event.text == "Q") {
-                    root.q-key-held = false;
+                root.polygon-mode-active = false;
+                root.current-tool = "Neutral";
+                root.s-key-held = false;
                 accept
-            }
-            else if (event.text == "1" || event.text == "2" || event.text == "3" ||
-                     event.text == "4" || event.text == "5") {
+            } else if (event.text == "q" || event.text == "Q") {
+                root.q-key-held = false;
+                accept
+            } else if (event.text == "1" || event.text == "2" || event.text == "3" || event.text == "4" || event.text == "5") {
                 root.digit-key-held = false;
                 accept
             }
