@@ -4,6 +4,58 @@ use slint::Model;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// Deterministic stub for auto-resize. Scales bbox about its center and clamps to image bounds.
+fn auto_resize_stub(
+    ann: &Annotation,
+    gesture_kind: &str,
+    image_size: (f32, f32),
+) -> Option<(f32, f32, f32, f32)> {
+    // Only bbox/rbbox are handled in this stub
+    if ann.width <= 0.0 || ann.height <= 0.0 {
+        return None;
+    }
+
+    let scale = match gesture_kind {
+        "AClick" => 1.2,
+        _ => 1.0,
+    };
+
+    let cx = ann.x + ann.width / 2.0;
+    let cy = ann.y + ann.height / 2.0;
+
+    let mut new_w = ann.width * scale;
+    let mut new_h = ann.height * scale;
+
+    let (img_w, img_h) = image_size;
+
+    // If scaled box is larger than the image, clamp to image size
+    if new_w > img_w {
+        new_w = img_w;
+    }
+    if new_h > img_h {
+        new_h = img_h;
+    }
+
+    let mut new_x = cx - new_w / 2.0;
+    let mut new_y = cy - new_h / 2.0;
+
+    // Clamp to keep box fully inside the image
+    if new_x < 0.0 {
+        new_x = 0.0;
+    }
+    if new_y < 0.0 {
+        new_y = 0.0;
+    }
+    if new_x + new_w > img_w {
+        new_x = (img_w - new_w).max(0.0);
+    }
+    if new_y + new_h > img_h {
+        new_y = (img_h - new_h).max(0.0);
+    }
+
+    Some((new_x, new_y, new_w, new_h))
+}
+
 // Helper function to parse vertices string into PolygonVertex array
 fn parse_vertices(vertices_str: &str) -> Vec<PolygonVertex> {
     vertices_str
@@ -88,6 +140,8 @@ fn main() -> Result<(), slint::PlatformError> {
     // Load test image
     let image_path = std::path::PathBuf::from("/Users/jacobvaught/RUST/images/wide.jpeg");
     let image = slint::Image::load_from_path(&image_path).expect("Failed to load test image");
+    let image_size = image.size();
+    let image_dimensions = (image_size.width as f32, image_size.height as f32);
     ui.set_image_source(image);
 
     // Initialize Annotations
@@ -353,6 +407,54 @@ fn main() -> Result<(), slint::PlatformError> {
                     format!("Selected annotation set to class {}", new_class).into(),
                 );
             }
+        }
+    });
+
+    // Auto-resize (stub) callbacks
+    let annotations_handle = annotations.clone();
+    let ui_handle = ui.as_weak();
+    ui.on_auto_resize_annotation(move |img_x, img_y, gesture_kind| {
+        let count = annotations_handle.row_count();
+        let mut target_index: Option<usize> = None;
+
+        // Find topmost bbox containing the click
+        for i in (0..count).rev() {
+            if let Some(ann) = annotations_handle.row_data(i) {
+                let is_box = ann.r#type.as_str() == "bbox" || ann.r#type.as_str() == "rbbox";
+                let inside = img_x >= ann.x
+                    && img_x <= ann.x + ann.width
+                    && img_y >= ann.y
+                    && img_y <= ann.y + ann.height;
+
+                if is_box && inside {
+                    target_index = Some(i);
+                    break;
+                }
+            }
+        }
+
+        if let Some(idx) = target_index {
+            if let Some(mut ann) = annotations_handle.row_data(idx) {
+                if let Some((new_x, new_y, new_w, new_h)) =
+                    auto_resize_stub(&ann, gesture_kind.as_str(), image_dimensions)
+                {
+                    ann.x = new_x;
+                    ann.y = new_y;
+                    ann.width = new_w;
+                    ann.height = new_h;
+                    annotations_handle.set_row_data(idx, ann);
+
+                    if let Some(ui) = ui_handle.upgrade() {
+                        ui.set_status_text(
+                            format!("Auto-resize applied ({})", gesture_kind).into(),
+                        );
+                    }
+                } else if let Some(ui) = ui_handle.upgrade() {
+                    ui.set_status_text("Auto-resize: no change".into());
+                }
+            }
+        } else if let Some(ui) = ui_handle.upgrade() {
+            ui.set_status_text("Auto-resize: no annotation under cursor".into());
         }
     });
 
