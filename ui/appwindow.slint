@@ -1,20 +1,71 @@
-import { VerticalBox } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 
 export component AppWindow inherits Window {
     title: "Annotator v0";
-    min-width: 400px;
-    min-height: 300px;
+    min-width: 800px;
+    min-height: 600px;
 
     in property <string> status-text: "Ready";
 
     VerticalBox {
         preferred-width: 1200px;
         preferred-height: 800px;
-        Text {
-            text: root.status-text;
-            font-size: 24px;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        padding: 0px;
+        spacing: 0px;
+
+        // Top Bar
+        Rectangle {
+            height: 40px;
+            background: #333333;
+            Text {
+                text: "Annotator";
+                color: white;
+                font-size: 16px;
+                x: 10px;
+                vertical-alignment: center;
+            }
+        }
+
+        // Middle Section
+        HorizontalBox {
+            padding: 0px;
+            spacing: 0px;
+            
+            // Left Sidebar
+            Rectangle {
+                width: 200px;
+                background: #444444;
+                Text {
+                    text: "Classes / Tools";
+                    color: white;
+                    horizontal-alignment: center;
+                    y: 10px;
+                }
+            }
+
+            // Central Canvas Placeholder
+            Rectangle {
+                background: #222222;
+                Text {
+                    text: "Canvas Placeholder";
+                    color: #888888;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Bottom Status Bar
+        Rectangle {
+            height: 30px;
+            background: #333333;
+            Text {
+                text: root.status-text;
+                color: white;
+                font-size: 12px;
+                x: 10px;
+                vertical-alignment: center;
+            }
         }
     }
 }
