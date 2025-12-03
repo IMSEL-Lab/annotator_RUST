@@ -1,4 +1,8 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { MenuBar } from "components/menubar.slint";
+import { Sidebar, ClassItem } from "components/sidebar.slint";
+import { SettingsDialog } from "components/dialogs/settings_dialog.slint";
 
 struct PolygonVertex {
     x: float,
@@ -25,6 +29,7 @@ export component AppWindow inherits Window {
     title: "Annotator v0";
     min-width: 800px;
     min-height: 600px;
+    background: Theme.current.bg-dark;
 
     in property <string> status-text: "Ready";
     callback log-debug(string);
@@ -69,6 +74,34 @@ export component AppWindow inherits Window {
     callback view-changed(float, float, float);
     callback save-dataset();
 
+    // Phase 4: Dataset management
+    callback open-dataset();
+    callback new-dataset();
+
+    // Phase 5: Export system
+    callback export-coco();
+    callback export-voc();
+
+    // Phase 2: Class management
+    in property <[ClassItem]> class-items;
+    callback get-class-name(int) -> string;
+
+    // Phase 2: Sidebar
+    in-out property <bool> sidebar-visible: true;
+    in-out property <length> sidebar-width: 250px;
+
+    // Menu dropdown state
+    in-out property <string> open-menu: "";
+
+    // Phase 3: Settings
+    in-out property <bool> settings-dialog-visible: false;
+    in-out property <string> theme-setting: "dark";
+    in-out property <bool> enable-points-setting: true;
+    in-out property <bool> enable-bboxes-setting: true;
+    in-out property <bool> enable-polygons-setting: true;
+    in-out property <bool> randomize-dataset-setting: false;
+    callback apply-settings(string, bool, bool, bool, bool);  // theme, points, bboxes, polygons, randomize
+
     // Helper to generate SVG path commands from vertices string
     pure function generate-polygon-path(vertices-str: string) -> string {
         // This will be populated from Rust with proper SVG path commands
@@ -94,110 +127,66 @@ export component AppWindow inherits Window {
     callback update-resize(float, float);  // Image coords during drag
     callback finish-resize();  // Complete resize operation
 
-    VerticalBox {
-        preferred-width: 1200px;
-        preferred-height: 800px;
+    VerticalLayout {
         padding: 0px;
         spacing: 0px;
 
-        // Top Bar
-        Rectangle {
-            height: 40px;
-            background: #333333;
-            HorizontalLayout {
-                padding: 8px;
-                spacing: 12px;
-                Text {
-                    text: "Annotator";
-                    color: white;
-                    font-size: 16px;
-                    vertical-alignment: center;
-                }
-
-                Rectangle {
-                    width: 1px;
-                    height: 24px;
-                    background: #555555;
-                }
-
-                Text {
-                    text: root.dataset-position == "" ? "No dataset" : root.dataset-position;
-                    color: #AAAAAA;
-                    font-size: 14px;
-                    vertical-alignment: center;
-                }
-
-                Text {
-                    text: root.current-image-name;
-                    color: #CCCCCC;
-                    font-size: 14px;
-                    vertical-alignment: center;
-                    horizontal-alignment: left;
-                }
-
-                HorizontalLayout {
-                    spacing: 4px;
-                    Rectangle {
-                        width: 26px;
-                        height: 20px;
-                        background: #555555;
-                        border-radius: 3px;
-                        Text {
-                            text: "<";
-                            color: white;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-
-                        TouchArea {
-                            clicked => {
-                                root.prev-image();
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        width: 26px;
-                        height: 20px;
-                        background: #555555;
-                        border-radius: 3px;
-                        Text {
-                            text: ">";
-                            color: white;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-
-                        TouchArea {
-                            clicked => {
-                                root.next-image();
-                            }
-                        }
-                    }
-                }
+        // Menu Bar
+        MenuBar {
+            open-menu <=> root.open-menu;
+            file-open-dataset => {
+                root.open-dataset();
+            }
+            file-new-dataset => {
+                root.new-dataset();
+            }
+            file-save => {
+                root.save-dataset();
+            }
+            file-export-coco => {
+                root.export-coco();
+            }
+            file-export-voc => {
+                root.export-voc();
+            }
+            view-reset => {
+                root.reset-view();
+            }
+            view-toggle-sidebar => {
+                root.sidebar-visible = !root.sidebar-visible;
+            }
+            view-theme-dark => {
+                Theme.set-theme("dark");
+            }
+            view-theme-light => {
+                Theme.set-theme("light");
+            }
+            tools-settings => {
+                root.settings-dialog-visible = true;
             }
         }
 
-        // Middle Section
-        HorizontalBox {
+        // Main content area
+        HorizontalLayout {
             padding: 0px;
             spacing: 0px;
-            
+
             // Left Sidebar
-            Rectangle {
-                width: 200px;
-                background: #444444;
-                Text {
-                    text: "Classes / Tools";
-                    color: white;
-                    horizontal-alignment: center;
-                    y: 10px;
+            Sidebar {
+                classes: root.class-items;
+                current-class: root.current-class;
+                current-tool: root.current-tool;
+                show-sidebar: root.sidebar-visible;
+                sidebar-width: root.sidebar-width;
+                class-selected(id) => {
+                    root.current-class = id;
                 }
             }
 
             // Central Canvas
             image-container := Rectangle {
-                background: #222222;
+                horizontal-stretch: 1;  // Take all remaining space
+                background: Theme.current.bg-dark;
                 clip: true;
 
                 property <float> fit-scale: {
@@ -314,8 +303,8 @@ export component AppWindow inherits Window {
                     width: root.preview-width * 1px * image-container.zoom-level;
                     height: root.preview-height * 1px * image-container.zoom-level;
                     border-width: 2px;
-                    border-color: #00FFFF;  // Cyan for preview
-                    background: #00FFFF20;  // Translucent cyan
+                    border-color: Theme.current.accent-primary;  // Cyan/blue for preview
+                    background: Theme.current.accent-primary.with-alpha(0.13);  // Translucent
                 }
 
                 // Polygon mode indicator
@@ -324,12 +313,12 @@ export component AppWindow inherits Window {
                     y: 50px;
                     width: 280px;
                     height: 40px;
-                    background: #FF00FF;
+                    background: Theme.current.accent-warning;
                     border-radius: 5px;
 
                     Text {
                         text: "POLYGON MODE (Hold S) - Click vertices, release S/Tab/Enter to finish, Esc to cancel";
-                        color: white;
+                        color: Theme.current.bg-dark;
                         font-size: 10px;
                         horizontal-alignment: center;
                         vertical-alignment: center;
@@ -350,7 +339,7 @@ export component AppWindow inherits Window {
                         width: root.image-source.width * 1px * image-container.zoom-level;
                         height: root.image-source.height * 1px * image-container.zoom-level;
 
-                        stroke: #FFFF00;  // Yellow for preview
+                        stroke: Theme.current.accent-warning;  // Yellow/warning color for preview
                         stroke-width: 2px;
                         fill: transparent;
 
@@ -365,8 +354,8 @@ export component AppWindow inherits Window {
                     height: 100%;
 
                     property <bool> hidden: annotation.state == "Rejected";
-                    property <color> stroke-color: annotation.state == "Pending" ? #f7c948 : (annotation.state == "Manual" ? #4ea1ff : #3ddc97);
-                    property <color> fill-color: annotation.state == "Pending" ? #f7c94822 : (annotation.state == "Manual" ? #4ea1ff22 : #3ddc9722);
+                    property <color> stroke-color: annotation.state == "Pending" ? Theme.current.pending : (annotation.state == "Manual" ? Theme.current.manual : Theme.current.accepted);
+                    property <color> fill-color: annotation.state == "Pending" ? Theme.current.pending.with-alpha(0.13) : (annotation.state == "Manual" ? Theme.current.manual.with-alpha(0.13) : Theme.current.accepted.with-alpha(0.13));
                     
                     // Calculate screen coordinates
                     property <length> screen-x: image-container.pan-x + (annotation.x * 1px * image-container.zoom-level);
@@ -393,7 +382,7 @@ export component AppWindow inherits Window {
                         width: 10px;
                         height: 10px;
                         border-radius: 5px;
-                        background: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
+                        background: annotation.selected ? Theme.current.selected : annotation-rect.stroke-color;
                     }
 
                     // Standard BBox (Rectangle)
@@ -404,8 +393,8 @@ export component AppWindow inherits Window {
                         width: annotation-rect.screen-w;
                         height: annotation-rect.screen-h;
                         border-width: 2px;
-                        border-color: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
-                        background: annotation.selected ? #00FF0020 : annotation-rect.fill-color;
+                        border-color: annotation.selected ? Theme.current.selected : annotation-rect.stroke-color;
+                        background: annotation.selected ? Theme.current.selected.with-alpha(0.13) : annotation-rect.fill-color;
                     }
 
                     // Rotated BBox (using transform-rotation)
@@ -416,8 +405,8 @@ export component AppWindow inherits Window {
                         width: annotation-rect.screen-w;
                         height: annotation-rect.screen-h;
                         border-width: 2px;
-                        border-color: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
-                        background: annotation.selected ? #00FF0020 : annotation-rect.fill-color;
+                        border-color: annotation.selected ? Theme.current.selected : annotation-rect.stroke-color;
+                        background: annotation.selected ? Theme.current.selected.with-alpha(0.13) : annotation-rect.fill-color;
                         transform-rotation: annotation-rect.rot;
                     }
 
@@ -436,9 +425,9 @@ export component AppWindow inherits Window {
                             width: root.image-source.width * 1px * image-container.zoom-level;
                             height: root.image-source.height * 1px * image-container.zoom-level;
 
-                            stroke: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
+                            stroke: annotation.selected ? Theme.current.selected : annotation-rect.stroke-color;
                             stroke-width: 3px;
-                            fill: annotation.selected ? #00FF0020 : annotation-rect.fill-color;
+                            fill: annotation.selected ? Theme.current.selected.with-alpha(0.13) : annotation-rect.fill-color;
 
                             // Use dynamically generated SVG path commands
                             commands: annotation.polygon-path-commands;
@@ -451,7 +440,7 @@ export component AppWindow inherits Window {
                             width: 10px;
                             height: 10px;
                             border-radius: 5px;
-                            background: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
+                            background: annotation.selected ? Theme.current.selected : annotation-rect.stroke-color;
                         }
                     }
 
@@ -462,12 +451,12 @@ export component AppWindow inherits Window {
                         y: annotation-rect.screen-y - 20px;
                         width: 32px;
                         height: 18px;
-                        background: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
+                        background: annotation.selected ? Theme.current.selected : annotation-rect.stroke-color;
                         border-radius: 3px;
 
                         Text {
                             text: annotation.class;
-                            color: #000000;
+                            color: Theme.current.bg-dark;
                             font-size: 12px;
                             horizontal-alignment: center;
                             vertical-alignment: center;
@@ -489,7 +478,7 @@ export component AppWindow inherits Window {
                             y: annotation-rect.screen-y - parent.half-handle;
                             width: parent.handle-size;
                             height: parent.handle-size;
-                            background: #00FF00;
+                            background: Theme.current.selected;
                             border-width: 1px;
                             border-color: #000000;
 
@@ -522,7 +511,7 @@ export component AppWindow inherits Window {
                             y: annotation-rect.screen-y - parent.half-handle;
                             width: parent.handle-size;
                             height: parent.handle-size;
-                            background: #00FF00;
+                            background: Theme.current.selected;
                             border-width: 1px;
                             border-color: #000000;
 
@@ -555,7 +544,7 @@ export component AppWindow inherits Window {
                             y: annotation-rect.screen-y + annotation-rect.screen-h - parent.half-handle;
                             width: parent.handle-size;
                             height: parent.handle-size;
-                            background: #00FF00;
+                            background: Theme.current.selected;
                             border-width: 1px;
                             border-color: #000000;
 
@@ -588,7 +577,7 @@ export component AppWindow inherits Window {
                             y: annotation-rect.screen-y + annotation-rect.screen-h - parent.half-handle;
                             width: parent.handle-size;
                             height: parent.handle-size;
-                            background: #00FF00;
+                            background: Theme.current.selected;
                             border-width: 1px;
                             border-color: #000000;
 
@@ -622,7 +611,7 @@ export component AppWindow inherits Window {
                             y: annotation-rect.screen-y - parent.half-handle;
                             width: parent.handle-size;
                             height: parent.handle-size;
-                            background: #00FF00;
+                            background: Theme.current.selected;
                             border-width: 1px;
                             border-color: #000000;
 
@@ -655,7 +644,7 @@ export component AppWindow inherits Window {
                             y: annotation-rect.screen-y + annotation-rect.screen-h / 2 - parent.half-handle;
                             width: parent.handle-size;
                             height: parent.handle-size;
-                            background: #00FF00;
+                            background: Theme.current.selected;
                             border-width: 1px;
                             border-color: #000000;
 
@@ -688,7 +677,7 @@ export component AppWindow inherits Window {
                             y: annotation-rect.screen-y + annotation-rect.screen-h - parent.half-handle;
                             width: parent.handle-size;
                             height: parent.handle-size;
-                            background: #00FF00;
+                            background: Theme.current.selected;
                             border-width: 1px;
                             border-color: #000000;
 
@@ -721,7 +710,7 @@ export component AppWindow inherits Window {
                             y: annotation-rect.screen-y + annotation-rect.screen-h / 2 - parent.half-handle;
                             width: parent.handle-size;
                             height: parent.handle-size;
-                            background: #00FF00;
+                            background: Theme.current.selected;
                             border-width: 1px;
                             border-color: #000000;
 
@@ -781,34 +770,450 @@ export component AppWindow inherits Window {
             }
         }
 
-        // Bottom Status Bar
+        // Bottom Status Bar (combined with navigation)
         Rectangle {
-            height: 30px;
-            background: #333333;
+            height: 32px;
+            background: Theme.current.bg-medium;
             HorizontalLayout {
-                padding: 5px;
-                spacing: 20px;
+                padding: 6px;
+                spacing: 12px;
+
+                // Dataset position
                 Text {
-                    text: root.status-text;
-                    color: white;
+                    text: root.dataset-position == "" ? "No dataset" : root.dataset-position;
+                    color: Theme.current.text-secondary;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                    width: 60px;
+                }
+
+                Rectangle {
+                    width: 1px;
+                    height: 20px;
+                    background: Theme.current.border-light;
+                }
+
+                // Image name
+                Text {
+                    text: root.current-image-name;
+                    color: Theme.current.text-secondary;
                     font-size: 12px;
                     vertical-alignment: center;
                 }
 
+                Rectangle {
+                    width: 1px;
+                    height: 20px;
+                    background: Theme.current.border-light;
+                }
+
+                // Status text
+                Text {
+                    text: root.status-text;
+                    color: Theme.current.text-primary;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
+
+                // Spacer
+                Rectangle { }
+
+                // Tool and class info
                 Text {
                     text: "Tool: " + root.current-tool;
-                    color: root.current-tool == "Neutral" ? #888888 : #00FF00;
+                    color: root.current-tool == "Neutral" ? Theme.current.text-disabled : Theme.current.accent-secondary;
                     font-size: 12px;
                     vertical-alignment: center;
                 }
 
                 Text {
                     text: "Class: " + root.current-class;
-                    color: #FFAA00;
+                    color: Theme.current.accent-warning;
                     font-size: 12px;
                     vertical-alignment: center;
                 }
+
+                // Navigation arrows
+                HorizontalLayout {
+                    spacing: 4px;
+
+                    Rectangle {
+                        width: 26px;
+                        height: 20px;
+                        background: prev-touch.has-hover ? Theme.current.bg-hover : Theme.current.bg-light;
+                        border-radius: 3px;
+
+                        Text {
+                            text: "<";
+                            color: Theme.current.text-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        prev-touch := TouchArea {
+                            clicked => {
+                                root.prev-image();
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 26px;
+                        height: 20px;
+                        background: next-touch.has-hover ? Theme.current.bg-hover : Theme.current.bg-light;
+                        border-radius: 3px;
+
+                        Text {
+                            text: ">";
+                            color: Theme.current.text-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        next-touch := TouchArea {
+                            clicked => {
+                                root.next-image();
+                            }
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    // Click outside to close menu (rendered before dropdowns so dropdowns appear on top)
+    if root.open-menu != "": Rectangle {
+        width: 100%;
+        height: 100%;
+        y: 32px;
+
+        TouchArea {
+            clicked => {
+                root.open-menu = "";
+            }
+        }
+    }
+
+    // Menu Dropdowns (rendered last so they appear on top)
+    // File Menu Dropdown
+    if root.open-menu == "file": Rectangle {
+        x: 0px;
+        y: 32px;
+        width: 220px;
+        background: Theme.current.bg-light;
+        border-width: 1px;
+        border-color: Theme.current.border-light;
+
+        VerticalLayout {
+            padding: 4px;
+            spacing: 2px;
+
+            Rectangle {
+                height: 28px;
+                background: menu-open-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "Open Dataset...";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    x: 8px;
+                    vertical-alignment: center;
+                }
+
+                menu-open-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        root.open-dataset();
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 28px;
+                background: menu-new-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "New Dataset from Folder...";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    x: 8px;
+                    vertical-alignment: center;
+                }
+
+                menu-new-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        root.new-dataset();
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Theme.current.border-light;
+            }
+
+            Rectangle {
+                height: 28px;
+                background: menu-save-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+
+                    Text {
+                        text: "Save";
+                        color: Theme.current.text-primary;
+                        font-size: 13px;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle { }
+
+                    Text {
+                        text: "Ctrl+S";
+                        color: Theme.current.text-secondary;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+                }
+
+                menu-save-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        root.save-dataset();
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Theme.current.border-light;
+            }
+
+            Rectangle {
+                height: 28px;
+                background: menu-export-coco-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "Export as COCO JSON...";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    x: 8px;
+                    vertical-alignment: center;
+                }
+
+                menu-export-coco-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        root.export-coco();
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 28px;
+                background: menu-export-voc-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "Export as Pascal VOC...";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    x: 8px;
+                    vertical-alignment: center;
+                }
+
+                menu-export-voc-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        root.export-voc();
+                    }
+                }
+            }
+        }
+    }
+
+    // View Menu Dropdown
+    if root.open-menu == "view": Rectangle {
+        x: 60px;
+        y: 32px;
+        width: 160px;
+        background: Theme.current.bg-light;
+        border-width: 1px;
+        border-color: Theme.current.border-light;
+
+        VerticalLayout {
+            padding: 4px;
+            spacing: 2px;
+
+            Rectangle {
+                height: 28px;
+                background: menu-reset-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+
+                    Text {
+                        text: "Reset View";
+                        color: Theme.current.text-primary;
+                        font-size: 13px;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle { }
+
+                    Text {
+                        text: "H";
+                        color: Theme.current.text-secondary;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                    }
+                }
+
+                menu-reset-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        root.reset-view();
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 28px;
+                background: menu-sidebar-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "Toggle Sidebar";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    x: 8px;
+                    vertical-alignment: center;
+                }
+
+                menu-sidebar-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        root.sidebar-visible = !root.sidebar-visible;
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Theme.current.border-light;
+            }
+
+            Rectangle {
+                height: 28px;
+                background: menu-dark-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "Dark Theme";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    x: 8px;
+                    vertical-alignment: center;
+                }
+
+                menu-dark-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        Theme.set-theme("dark");
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 28px;
+                background: menu-light-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "Light Theme";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    x: 8px;
+                    vertical-alignment: center;
+                }
+
+                menu-light-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        Theme.set-theme("light");
+                    }
+                }
+            }
+        }
+    }
+
+    // Tools Menu Dropdown
+    if root.open-menu == "tools": Rectangle {
+        x: 120px;
+        y: 32px;
+        width: 160px;
+        background: Theme.current.bg-light;
+        border-width: 1px;
+        border-color: Theme.current.border-light;
+
+        VerticalLayout {
+            padding: 4px;
+            spacing: 2px;
+
+            Rectangle {
+                height: 28px;
+                background: menu-settings-touch.has-hover ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "Settings...";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    x: 8px;
+                    vertical-alignment: center;
+                }
+
+                menu-settings-touch := TouchArea {
+                    clicked => {
+                        root.open-menu = "";
+                        root.settings-dialog-visible = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Settings Dialog
+    SettingsDialog {
+        show-dialog: root.settings-dialog-visible;
+        theme-selection: root.theme-setting;
+        enable-points: root.enable-points-setting;
+        enable-bboxes: root.enable-bboxes-setting;
+        enable-polygons: root.enable-polygons-setting;
+        randomize-dataset: root.randomize-dataset-setting;
+        apply-settings => {
+            // Update settings
+            root.theme-setting = self.theme-selection;
+            root.enable-points-setting = self.enable-points;
+            root.enable-bboxes-setting = self.enable-bboxes;
+            root.enable-polygons-setting = self.enable-polygons;
+            root.randomize-dataset-setting = self.randomize-dataset;
+
+            // Apply theme immediately
+            Theme.set-theme(root.theme-setting);
+
+            // Call Rust callback to save settings
+            root.apply-settings(
+                root.theme-setting,
+                root.enable-points-setting,
+                root.enable-bboxes-setting,
+                root.enable-polygons-setting,
+                root.randomize-dataset-setting
+            );
+
+            // Close dialog
+            root.settings-dialog-visible = false;
+        }
+        cancel => {
+            root.settings-dialog-visible = false;
         }
     }
 

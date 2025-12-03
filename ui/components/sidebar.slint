@@ -1,0 +1,260 @@
+import { Theme } from "../theme.slint";
+import { VerticalBox } from "std-widgets.slint";
+
+// Class item for the class list
+export struct ClassItem {
+    id: int,
+    name: string,
+    color: color,
+    shortcut: string,
+}
+
+// Left sidebar component with tools and classes
+export component Sidebar {
+    in property <[ClassItem]> classes;
+    in-out property <int> current-class: 1;
+    in-out property <string> current-tool: "Neutral";
+    in property <bool> show-sidebar: true;
+    in property <length> sidebar-width: 250px;
+
+    callback class-selected(int);
+    callback tool-selected(string);
+
+    width: root.show-sidebar ? root.sidebar-width : 0px;
+    horizontal-stretch: 0;
+
+    Rectangle {
+        width: 100%;
+        background: Theme.current.bg-light;
+        visible: root.show-sidebar;
+
+        VerticalBox {
+            padding: 0px;
+            spacing: 0px;
+
+            // Tools Section
+            Rectangle {
+                height: 140px;
+                background: Theme.current.bg-light;
+
+                VerticalBox {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "Tools";
+                        color: Theme.current.text-primary;
+                        font-size: 14px;
+                        font-weight: 600;
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.current.border-light;
+                    }
+
+                    // BBox Tool
+                    bbox-tool := Rectangle {
+                        height: 28px;
+                        background: root.current-tool == "BBox (B)" ? Theme.current.accent-primary.with-alpha(0.2) :
+                                   (bbox-tool-touch.has-hover ? Theme.current.bg-hover : transparent);
+                        border-radius: 4px;
+
+                        HorizontalLayout {
+                            padding: 6px;
+                            spacing: 8px;
+
+                            Rectangle {
+                                width: 20px;
+                                height: 20px;
+                                background: Theme.current.accent-primary;
+                                border-radius: 2px;
+                            }
+
+                            Text {
+                                text: "Bounding Box";
+                                color: Theme.current.text-primary;
+                                font-size: 13px;
+                                vertical-alignment: center;
+                            }
+
+                            Rectangle { }
+
+                            Text {
+                                text: "B";
+                                color: Theme.current.text-secondary;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        bbox-tool-touch := TouchArea {
+                            clicked => {
+                                root.tool-selected("bbox");
+                            }
+                        }
+                    }
+
+                    // Point Tool
+                    point-tool := Rectangle {
+                        height: 28px;
+                        background: root.current-tool == "Point (C)" ? Theme.current.accent-primary.with-alpha(0.2) :
+                                   (point-tool-touch.has-hover ? Theme.current.bg-hover : transparent);
+                        border-radius: 4px;
+
+                        HorizontalLayout {
+                            padding: 6px;
+                            spacing: 8px;
+
+                            Rectangle {
+                                width: 20px;
+                                height: 20px;
+                                background: Theme.current.accent-secondary;
+                                border-radius: 10px;
+                            }
+
+                            Text {
+                                text: "Center Point";
+                                color: Theme.current.text-primary;
+                                font-size: 13px;
+                                vertical-alignment: center;
+                            }
+
+                            Rectangle { }
+
+                            Text {
+                                text: "C";
+                                color: Theme.current.text-secondary;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        point-tool-touch := TouchArea {
+                            clicked => {
+                                root.tool-selected("point");
+                            }
+                        }
+                    }
+
+                    // Polygon Tool
+                    polygon-tool := Rectangle {
+                        height: 28px;
+                        background: root.current-tool == "Polygon (Hold S)" ? Theme.current.accent-primary.with-alpha(0.2) :
+                                   (polygon-tool-touch.has-hover ? Theme.current.bg-hover : transparent);
+                        border-radius: 4px;
+
+                        HorizontalLayout {
+                            padding: 6px;
+                            spacing: 8px;
+
+                            Rectangle {
+                                width: 20px;
+                                height: 20px;
+                                background: Theme.current.accent-warning;
+                                border-radius: 2px;
+                            }
+
+                            Text {
+                                text: "Polygon";
+                                color: Theme.current.text-primary;
+                                font-size: 13px;
+                                vertical-alignment: center;
+                            }
+
+                            Rectangle { }
+
+                            Text {
+                                text: "S";
+                                color: Theme.current.text-secondary;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        polygon-tool-touch := TouchArea {
+                            clicked => {
+                                root.tool-selected("polygon");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Divider
+            Rectangle {
+                height: 1px;
+                background: Theme.current.border-dark;
+            }
+
+            // Classes Section
+            Rectangle {
+                background: Theme.current.bg-light;
+
+                VerticalBox {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "Classes";
+                        color: Theme.current.text-primary;
+                        font-size: 14px;
+                        font-weight: 600;
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.current.border-light;
+                    }
+
+                    // Class list
+                    for class-item[index] in root.classes: class-item-rect := Rectangle {
+                        height: 32px;
+                        background: root.current-class == class-item.id ? Theme.current.accent-primary.with-alpha(0.2) :
+                                   (class-item-touch.has-hover ? Theme.current.bg-hover : transparent);
+                        border-radius: 4px;
+
+                        HorizontalLayout {
+                            padding: 6px;
+                            spacing: 8px;
+
+                            // Color indicator
+                            Rectangle {
+                                width: 18px;
+                                height: 18px;
+                                background: class-item.color;
+                                border-radius: 3px;
+                                border-width: 1px;
+                                border-color: Theme.current.border-light;
+                            }
+
+                            // Shortcut key
+                            Text {
+                                text: class-item.shortcut;
+                                color: Theme.current.text-secondary;
+                                font-size: 12px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                                width: 20px;
+                            }
+
+                            // Class name
+                            Text {
+                                text: class-item.name;
+                                color: Theme.current.text-primary;
+                                font-size: 13px;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        class-item-touch := TouchArea {
+                            clicked => {
+                                root.class-selected(class-item.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

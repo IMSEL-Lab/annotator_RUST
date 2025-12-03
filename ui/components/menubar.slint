@@ -1,0 +1,98 @@
+import { Theme } from "../theme.slint";
+
+// Custom menu bar component with dropdown menus
+export component MenuBar {
+    // Callbacks for menu actions
+    callback file-open-dataset();
+    callback file-new-dataset();
+    callback file-save();
+    callback file-export-coco();
+    callback file-export-voc();
+    callback view-reset();
+    callback view-toggle-sidebar();
+    callback view-theme-dark();
+    callback view-theme-light();
+    callback tools-settings();
+
+    // State for which menu is open
+    in-out property <string> open-menu: "";
+
+    height: 32px;
+
+    // Main menu bar
+    Rectangle {
+        width: 100%;
+        height: 32px;
+        background: Theme.current.bg-medium;
+
+        HorizontalLayout {
+            padding: 0px;
+            spacing: 0px;
+
+            // File Menu
+            Rectangle {
+                width: 60px;
+                background: root.open-menu == "file" ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "File";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    clicked => {
+                        root.open-menu = root.open-menu == "file" ? "" : "file";
+                    }
+                }
+            }
+
+            // View Menu
+            Rectangle {
+                width: 60px;
+                background: root.open-menu == "view" ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "View";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    clicked => {
+                        root.open-menu = root.open-menu == "view" ? "" : "view";
+                    }
+                }
+            }
+
+            // Tools Menu
+            Rectangle {
+                width: 60px;
+                background: root.open-menu == "tools" ? Theme.current.bg-hover : transparent;
+
+                Text {
+                    text: "Tools";
+                    color: Theme.current.text-primary;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    clicked => {
+                        root.open-menu = root.open-menu == "tools" ? "" : "tools";
+                    }
+                }
+            }
+
+            // Spacer
+            Rectangle { }
+        }
+    }
+
+    // Dropdowns are now rendered in AppWindow to ensure proper z-ordering
+}

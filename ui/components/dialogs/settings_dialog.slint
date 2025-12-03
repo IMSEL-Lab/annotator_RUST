@@ -1,0 +1,217 @@
+import { Theme } from "../../theme.slint";
+import { VerticalBox, HorizontalBox, CheckBox, ComboBox } from "std-widgets.slint";
+
+// Settings dialog component
+export component SettingsDialog {
+    in-out property <bool> show-dialog: false;
+
+    // Settings values
+    in-out property <string> theme-selection: "dark";
+    in-out property <bool> enable-points: true;
+    in-out property <bool> enable-bboxes: true;
+    in-out property <bool> enable-polygons: true;
+    in-out property <bool> randomize-dataset: false;
+    in-out property <int> autosave-interval: 5;
+
+    callback apply-settings();
+    callback cancel();
+
+    // Modal overlay
+    if root.show-dialog: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #00000080;
+
+        // Dialog box
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 500px;
+            height: 450px;
+            background: Theme.current.bg-light;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: Theme.current.border-light;
+
+            VerticalBox {
+                padding: 20px;
+                spacing: 16px;
+
+                // Title
+                Text {
+                    text: "Settings";
+                    font-size: 18px;
+                    font-weight: 600;
+                    color: Theme.current.text-primary;
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: Theme.current.border-light;
+                }
+
+                // Appearance Section
+                VerticalBox {
+                    spacing: 8px;
+
+                    Text {
+                        text: "Appearance";
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: Theme.current.text-primary;
+                    }
+
+                    HorizontalBox {
+                        spacing: 12px;
+
+                        Text {
+                            text: "Theme:";
+                            color: Theme.current.text-secondary;
+                            vertical-alignment: center;
+                            width: 120px;
+                        }
+
+                        ComboBox {
+                            model: ["Dark", "Light"];
+                            current-value: root.theme-selection == "dark" ? "Dark" : "Light";
+                            selected => {
+                                root.theme-selection = self.current-value == "Dark" ? "dark" : "light";
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: Theme.current.border-light;
+                }
+
+                // Annotation Modes Section
+                VerticalBox {
+                    spacing: 8px;
+
+                    Text {
+                        text: "Annotation Modes";
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: Theme.current.text-primary;
+                    }
+
+                    Text {
+                        text: "Enable or disable annotation types:";
+                        font-size: 12px;
+                        color: Theme.current.text-secondary;
+                    }
+
+                    CheckBox {
+                        text: "Enable Center Points (C key)";
+                        checked <=> root.enable-points;
+                    }
+
+                    CheckBox {
+                        text: "Enable Bounding Boxes (B key)";
+                        checked <=> root.enable-bboxes;
+                    }
+
+                    CheckBox {
+                        text: "Enable Polygons (S key)";
+                        checked <=> root.enable-polygons;
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: Theme.current.border-light;
+                }
+
+                // Dataset Section
+                VerticalBox {
+                    spacing: 8px;
+
+                    Text {
+                        text: "Dataset";
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: Theme.current.text-primary;
+                    }
+
+                    CheckBox {
+                        text: "Randomize dataset order on load";
+                        checked <=> root.randomize-dataset;
+                    }
+
+                    HorizontalBox {
+                        spacing: 12px;
+
+                        Text {
+                            text: "Auto-save interval:";
+                            color: Theme.current.text-secondary;
+                            vertical-alignment: center;
+                            width: 120px;
+                        }
+
+                        Text {
+                            text: root.autosave-interval + " seconds";
+                            color: Theme.current.text-primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Spacer
+                Rectangle { }
+
+                // Buttons
+                HorizontalBox {
+                    spacing: 8px;
+                    alignment: end;
+
+                    Rectangle {
+                        width: 80px;
+                        height: 32px;
+                        background: cancel-touch.has-hover ? Theme.current.bg-hover : Theme.current.bg-medium;
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: Theme.current.border-light;
+
+                        Text {
+                            text: "Cancel";
+                            color: Theme.current.text-primary;
+                            font-size: 13px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        cancel-touch := TouchArea {
+                            clicked => {
+                                root.cancel();
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 80px;
+                        height: 32px;
+                        background: apply-touch.has-hover ? Theme.current.accent-primary.darker(0.2) : Theme.current.accent-primary;
+                        border-radius: 4px;
+
+                        Text {
+                            text: "Apply";
+                            color: #ffffff;
+                            font-size: 13px;
+                            font-weight: 600;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        apply-touch := TouchArea {
+                            clicked => {
+                                root.apply-settings();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
