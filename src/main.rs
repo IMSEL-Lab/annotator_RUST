@@ -108,6 +108,7 @@ fn load_dataset(path: &Path) -> Result<DatasetState, String> {
         view_states: Vec::new(),
         global_view: None,
         last_view_image_size: None,
+        completed_frames: Vec::new(),
     })
 }
 
@@ -509,6 +510,7 @@ struct DatasetState {
     view_states: Vec<Option<ViewState>>,
     global_view: Option<ViewState>,
     last_view_image_size: Option<(f32, f32)>,
+    completed_frames: Vec<bool>,
 }
 
 // Parse hex color string to Slint Color
@@ -676,6 +678,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 let mut state = state;
                 state.stored_annotations = vec![None; len];
                 state.view_states = vec![None; len];
+                state.completed_frames = vec![false; len];
                 *dataset_state.borrow_mut() = Some(state);
             }
             Err(e) => {
@@ -702,6 +705,9 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             if ds.view_states.len() != ds.entries.len() {
                 ds.view_states.resize(ds.entries.len(), None);
+            }
+            if ds.completed_frames.len() != ds.entries.len() {
+                ds.completed_frames.resize(ds.entries.len(), false);
             }
             if index >= ds.entries.len() {
                 return;
@@ -762,6 +768,13 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.set_current_image_name(fname.into());
                 ui.set_dataset_position(format!("{} / {}", index + 1, ds.entries.len()).into());
                 ui.set_status_text(status_msg.into());
+
+                // Set completion status for this frame
+                if index < ds.completed_frames.len() {
+                    ui.set_frame_completed(ds.completed_frames[index]);
+                } else {
+                    ui.set_frame_completed(false);
+                }
 
                 // Apply view: prefer global (if same-ish size), else per-image cache, else reset.
                 if let (Some(gv), Some(last_size)) =
@@ -909,11 +922,22 @@ fn main() -> Result<(), slint::PlatformError> {
     // Drawing callbacks
     let ui_handle = ui.as_weak();
     let draw_state_handle = draw_state.clone();
+    let annotations_handle = annotations.clone();
     // Begin box/point drawing: remember anchor and show live preview rectangle.
     ui.on_start_drawing(move |x, y| {
         let mut state = draw_state_handle.borrow_mut();
         state.start_x = x;
         state.start_y = y;
+
+        // Deselect all annotations when starting a new one
+        for i in 0..annotations_handle.row_count() {
+            if let Some(mut ann) = annotations_handle.row_data(i) {
+                if ann.selected {
+                    ann.selected = false;
+                    annotations_handle.set_row_data(i, ann);
+                }
+            }
+        }
 
         if let Some(ui) = ui_handle.upgrade() {
             ui.set_show_preview(true);
@@ -1475,6 +1499,25 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    // Toggle frame completion (F key)
+    {
+        let ds_state = dataset_state.clone();
+        let ui_handle = ui.as_weak();
+        ui.on_toggle_frame_completion(move || {
+            if let (Ok(mut ds_opt), Some(ui)) = (ds_state.try_borrow_mut(), ui_handle.upgrade()) {
+                if let Some(ds) = ds_opt.as_mut() {
+                    let idx = ds.current_index;
+                    if idx < ds.completed_frames.len() {
+                        ds.completed_frames[idx] = !ds.completed_frames[idx];
+                        ui.set_frame_completed(ds.completed_frames[idx]);
+                        let status = if ds.completed_frames[idx] { "✓ Frame marked as complete" } else { "Frame marked as incomplete" };
+                        ui.set_status_text(status.into());
+                    }
+                }
+            }
+        });
+    }
+
     // Phase 4: Open existing dataset
     {
         let ds_state = dataset_state.clone();
@@ -1494,6 +1537,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         let mut state = state;
                         state.stored_annotations = vec![None; len];
                         state.view_states = vec![None; len];
+                        state.completed_frames = vec![false; len];
                         *ds_state.borrow_mut() = Some(state);
 
                         // Load first image
@@ -1533,6 +1577,7 @@ fn main() -> Result<(), slint::PlatformError> {
                                 let mut state = state;
                                 state.stored_annotations = vec![None; len];
                                 state.view_states = vec![None; len];
+                                state.completed_frames = vec![false; len];
                                 *ds_state.borrow_mut() = Some(state);
 
                                 // Load first image
