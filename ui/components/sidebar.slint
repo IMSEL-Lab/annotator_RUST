@@ -16,6 +16,7 @@ export component Sidebar {
     in-out property <string> current-tool: "Neutral";
     in property <bool> show-sidebar: true;
     in property <length> sidebar-width: 250px;
+    in-out property <bool> help-expanded: false;
 
     callback class-selected(int);
     callback tool-selected(string);
@@ -250,6 +251,152 @@ export component Sidebar {
                         class-item-touch := TouchArea {
                             clicked => {
                                 root.class-selected(class-item.id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Help Section (Collapsible)
+            Rectangle {
+                background: Theme.current.bg-light;
+
+                VerticalBox {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    // Header (clickable to toggle)
+                    Rectangle {
+                        height: 24px;
+                        background: help-header-touch.has-hover ? Theme.current.bg-hover : transparent;
+                        border-radius: 4px;
+
+                        HorizontalLayout {
+                            padding-left: 4px;
+                            padding-right: 4px;
+
+                            Text {
+                                text: root.help-expanded ? "▼" : "▶";
+                                color: Theme.current.text-secondary;
+                                font-size: 12px;
+                                vertical-alignment: center;
+                                width: 16px;
+                            }
+
+                            Text {
+                                text: "Quick Reference";
+                                color: Theme.current.text-primary;
+                                font-size: 14px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        help-header-touch := TouchArea {
+                            clicked => {
+                                root.help-expanded = !root.help-expanded;
+                            }
+                        }
+                    }
+
+                    // Help content (only shown when expanded)
+                    if root.help-expanded: Rectangle {
+                        background: Theme.current.bg-medium;
+                        border-radius: 4px;
+
+                        VerticalBox {
+                            padding: 8px;
+                            spacing: 6px;
+
+                            Text {
+                                text: "Drawing";
+                                color: Theme.current.text-primary;
+                                font-size: 11px;
+                                font-weight: 600;
+                            }
+
+                            Text {
+                                text: "• B - BBox (drag to draw)";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                            }
+
+                            Text {
+                                text: "• C - Center Point (click)";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                            }
+
+                            Text {
+                                text: "• S - Polygon (hold, click vertices)";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                            }
+
+                            Rectangle {
+                                height: 1px;
+                                background: Theme.current.border-light;
+                            }
+
+                            Text {
+                                text: "Editing";
+                                color: Theme.current.text-primary;
+                                font-size: 11px;
+                                font-weight: 600;
+                            }
+
+                            Text {
+                                text: "• Click - Select annotation";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                            }
+
+                            Text {
+                                text: "• A - Auto-resize selected (1.2x)";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                            }
+
+                            Text {
+                                text: "• Delete - Remove selected";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                            }
+
+                            Text {
+                                text: "• 1-5 - Assign class";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                            }
+
+                            Rectangle {
+                                height: 1px;
+                                background: Theme.current.border-light;
+                            }
+
+                            Text {
+                                text: "Navigation";
+                                color: Theme.current.text-primary;
+                                font-size: 11px;
+                                font-weight: 600;
+                            }
+
+                            Text {
+                                text: "• ←/→ - Previous/Next image";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                            }
+
+                            Text {
+                                text: "• F - Mark frame complete";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                            }
+
+                            Text {
+                                text: "• H - Reset view (fit to screen)";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
                             }
                         }
                     }

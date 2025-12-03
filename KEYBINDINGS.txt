@@ -11,3 +11,7 @@ Key/Mouse Interactions (current build)
 - Class change (selected): click to select annotation, then press digit 1–5 to set its class.
 - Class change (click-to-apply): hold digit 1–5 and left-click an annotation to reclassify it.
 - Status/info: status bar shows current tool, class, and polygon hints; debug log written via on_log_debug.
+- H or CTRL+0 bring image to default view - fit to window.
+- CTRL+A Auto-resizes bounding box annotations to fit around the detected edges of the object.
+- CTRL+S Saves the current dataset to default save format.
+- 

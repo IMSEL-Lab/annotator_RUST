@@ -3,6 +3,7 @@ slint::include_modules!();
 mod config;
 mod classes;
 mod export;
+mod auto_resize;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -11,58 +12,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::{Path, PathBuf};
 use std::fs;
-
-/// Deterministic stub for auto-resize. Scales bbox about its center and clamps to image bounds.
-fn auto_resize_stub(
-    ann: &Annotation,
-    gesture_kind: &str,
-    image_size: (f32, f32),
-) -> Option<(f32, f32, f32, f32)> {
-    // Only bbox/rbbox are handled in this stub
-    if ann.width <= 0.0 || ann.height <= 0.0 {
-        return None;
-    }
-
-    let scale = match gesture_kind {
-        "AClick" => 1.2,
-        _ => 1.0,
-    };
-
-    let cx = ann.x + ann.width / 2.0;
-    let cy = ann.y + ann.height / 2.0;
-
-    let mut new_w = ann.width * scale;
-    let mut new_h = ann.height * scale;
-
-    let (img_w, img_h) = image_size;
-
-    // If scaled box is larger than the image, clamp to image size
-    if new_w > img_w {
-        new_w = img_w;
-    }
-    if new_h > img_h {
-        new_h = img_h;
-    }
-
-    let mut new_x = cx - new_w / 2.0;
-    let mut new_y = cy - new_h / 2.0;
-
-    // Clamp to keep box fully inside the image
-    if new_x < 0.0 {
-        new_x = 0.0;
-    }
-    if new_y < 0.0 {
-        new_y = 0.0;
-    }
-    if new_x + new_w > img_w {
-        new_x = (img_w - new_w).max(0.0);
-    }
-    if new_y + new_h > img_h {
-        new_y = (img_h - new_h).max(0.0);
-    }
-
-    Some((new_x, new_y, new_w, new_h))
-}
 
 fn placeholder_image() -> slint::Image {
     let width = 64u32;
@@ -1152,12 +1101,12 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
 
-    // Auto-resize (stub) callbacks
+    // Smart auto-resize using Sobel edge detection
     let annotations_handle = annotations.clone();
     let ui_handle = ui.as_weak();
     let image_dimensions_for_auto = image_dimensions.clone();
-    // Auto-resize stub: adjust the first box under cursor using heuristics (pinch/edge gestures).
-    ui.on_auto_resize_annotation(move |img_x, img_y, gesture_kind| {
+    let ds_state_for_auto = dataset_state.clone();
+    ui.on_auto_resize_annotation(move |img_x, img_y, _gesture_kind| {
         let count = annotations_handle.row_count();
         let mut target_index: Option<usize> = None;
 
@@ -1182,25 +1131,45 @@ fn main() -> Result<(), slint::PlatformError> {
 
         if let Some(idx) = target_index {
             if let Some(mut ann) = annotations_handle.row_data(idx) {
-                if let Some((new_x, new_y, new_w, new_h)) =
-                    auto_resize_stub(&ann, gesture_kind.as_str(), *image_dimensions_for_auto.borrow())
-                {
-                    ann.x = new_x;
-                    ann.y = new_y;
-                    ann.width = new_w;
-                    ann.height = new_h;
-                    if ann.state == "Pending" {
-                        ann.state = "Accepted".into();
+                // Get current image path from dataset state
+                let image_path = if let Ok(ds_opt) = ds_state_for_auto.try_borrow() {
+                    if let Some(ds) = ds_opt.as_ref() {
+                        if ds.current_index < ds.entries.len() {
+                            Some(ds.entries[ds.current_index].image_path.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
                     }
-                    annotations_handle.set_row_data(idx, ann);
+                } else {
+                    None
+                };
 
-                    if let Some(ui) = ui_handle.upgrade() {
-                        ui.set_status_text(
-                            format!("Auto-resize applied ({})", gesture_kind).into(),
-                        );
+                if let Some(path) = image_path {
+                    let bbox = (ann.x, ann.y, ann.width, ann.height);
+                    let img_size = *image_dimensions_for_auto.borrow();
+
+                    if let Some((new_x, new_y, new_w, new_h)) =
+                        auto_resize::smart_auto_resize(&path, bbox, img_size)
+                    {
+                        ann.x = new_x;
+                        ann.y = new_y;
+                        ann.width = new_w;
+                        ann.height = new_h;
+                        if ann.state == "Pending" {
+                            ann.state = "Accepted".into();
+                        }
+                        annotations_handle.set_row_data(idx, ann);
+
+                        if let Some(ui) = ui_handle.upgrade() {
+                            ui.set_status_text("Smart auto-resize applied".into());
+                        }
+                    } else if let Some(ui) = ui_handle.upgrade() {
+                        ui.set_status_text("Auto-resize: failed to process".into());
                     }
                 } else if let Some(ui) = ui_handle.upgrade() {
-                    ui.set_status_text("Auto-resize: no change".into());
+                    ui.set_status_text("Auto-resize: image path not available".into());
                 }
             }
         } else if let Some(ui) = ui_handle.upgrade() {
