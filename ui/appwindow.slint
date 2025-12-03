@@ -67,6 +67,7 @@ export component AppWindow inherits Window {
     callback reset-view();
     callback apply-zoom-centered(float);
     callback view-changed(float, float, float);
+    callback save-dataset();
 
     // Helper to generate SVG path commands from vertices string
     pure function generate-polygon-path(vertices-str: string) -> string {
@@ -853,6 +854,9 @@ export component AppWindow inherits Window {
                 accept
             } else if ((event.text == "0" && (event.modifiers.control || event.modifiers.meta)) || event.text == "h" || event.text == "H") {
                 root.reset-view();
+                accept
+            } else if ((event.text == "s" || event.text == "S") && (event.modifiers.control || event.modifiers.meta)) {
+                root.save-dataset();
                 accept
             } else if (event.text == "b" || event.text == "B") {
                 root.current-tool = "BBox (B)";

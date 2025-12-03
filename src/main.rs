@@ -1,6 +1,7 @@
 slint::include_modules!();
 
 use serde::Deserialize;
+use serde::Serialize;
 use slint::{Model, SharedPixelBuffer};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -116,6 +117,31 @@ fn load_yolo_annotations(
     img_size: (f32, f32),
     next_id_start: i32,
 ) -> Vec<Annotation> {
+    // Prefer persisted state file if present
+    let state_path = state_path_for(entry);
+    if let Ok(text) = fs::read_to_string(&state_path) {
+        if let Ok(stored) = serde_json::from_str::<Vec<StoredAnnotation>>(&text) {
+            return stored
+                .into_iter()
+                .map(|s| Annotation {
+                    id: s.id,
+                    r#type: s.r#type.into(),
+                    x: s.x,
+                    y: s.y,
+                    width: s.width,
+                    height: s.height,
+                    rotation: s.rotation,
+                    selected: s.selected,
+                    class: s.class,
+                    state: s.state.into(),
+                    vertices: s.vertices.into(),
+                    polygon_vertices: Default::default(),
+                    polygon_path_commands: "".into(),
+                })
+                .collect();
+        }
+    }
+
     let mut anns = Vec::new();
     let Some(label_path) = entry.labels_path.as_ref() else {
         return anns;
@@ -207,6 +233,17 @@ fn sizes_close(a: (f32, f32), b: (f32, f32), tolerance: f32) -> bool {
     (a.0 - b.0).abs() <= tolerance && (a.1 - b.1).abs() <= tolerance
 }
 
+fn label_path_for(entry: &DatasetEntry) -> PathBuf {
+    entry
+        .labels_path
+        .clone()
+        .unwrap_or_else(|| entry.image_path.with_extension("txt"))
+}
+
+fn state_path_for(entry: &DatasetEntry) -> PathBuf {
+    label_path_for(entry).with_extension("state.json")
+}
+
 fn save_current_state(
     ds: &mut DatasetState,
     annotations: &slint::VecModel<Annotation>,
@@ -221,6 +258,73 @@ fn save_current_state(
     ds.view_states[idx] = Some(get_view_state(ui));
     ds.global_view = ds.view_states[idx].clone();
     ds.last_view_image_size = Some(img_size);
+}
+
+fn ann_to_stored(a: &Annotation) -> StoredAnnotation {
+    StoredAnnotation {
+        id: a.id,
+        r#type: a.r#type.to_string(),
+        x: a.x,
+        y: a.y,
+        width: a.width,
+        height: a.height,
+        rotation: a.rotation,
+        selected: false,
+        class: a.class,
+        state: a.state.to_string(),
+        vertices: a.vertices.to_string(),
+    }
+}
+
+fn save_all(ds: &DatasetState) -> Result<(), String> {
+    for (idx, entry) in ds.entries.iter().enumerate() {
+        let anns = ds
+            .stored_annotations
+            .get(idx)
+            .and_then(|v| v.clone())
+            .unwrap_or_default();
+
+        // Write YOLO labels (bbox/rbbox only, non-rejected)
+        let label_path = label_path_for(entry);
+        if let Some(parent) = label_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("Label dir create: {e}"))?;
+        }
+
+        let mut yolo_lines = Vec::new();
+        // Load image size to normalize
+        let img_size = slint::Image::load_from_path(&entry.image_path)
+            .map(|img| img.size())
+            .map(|s| (s.width as f32, s.height as f32))
+            .unwrap_or((1.0, 1.0));
+
+        for a in anns.iter() {
+            if a.state == "Rejected" {
+                continue;
+            }
+            if a.r#type == "bbox" || a.r#type == "rbbox" {
+                let cx = (a.x + a.width / 2.0) / img_size.0;
+                let cy = (a.y + a.height / 2.0) / img_size.1;
+                let w = (a.width / img_size.0).clamp(0.0, 1.0);
+                let h = (a.height / img_size.1).clamp(0.0, 1.0);
+                let cls = (a.class - 1).max(0);
+                yolo_lines.push(format!("{cls} {cx} {cy} {w} {h}"));
+            }
+        }
+        std::fs::write(&label_path, yolo_lines.join("\n"))
+            .map_err(|e| format!("Write labels {}: {e}", label_path.display()))?;
+
+        // Write state file with all annotations
+        let state_path = state_path_for(entry);
+        let stored: Vec<StoredAnnotation> = anns.iter().map(ann_to_stored).collect();
+        let json = serde_json::to_string_pretty(&stored)
+            .map_err(|e| format!("Serialize state: {e}"))?;
+        if let Some(parent) = state_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("State dir create: {e}"))?;
+        }
+        std::fs::write(&state_path, json)
+            .map_err(|e| format!("Write state {}: {e}", state_path.display()))?;
+    }
+    Ok(())
 }
 
 // Helper function to parse vertices string into PolygonVertex array
@@ -321,6 +425,21 @@ struct ViewState {
     pan_x: f32,
     pan_y: f32,
     zoom: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredAnnotation {
+    id: i32,
+    r#type: String,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    rotation: f32,
+    selected: bool,
+    class: i32,
+    state: String,
+    vertices: String,
 }
 
 #[derive(Debug, Clone)]
@@ -812,6 +931,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // Auto-resize (stub) callbacks
     let annotations_handle = annotations.clone();
     let ui_handle = ui.as_weak();
+    let image_dimensions_for_auto = image_dimensions.clone();
     // Auto-resize stub: adjust the first box under cursor using heuristics (pinch/edge gestures).
     ui.on_auto_resize_annotation(move |img_x, img_y, gesture_kind| {
         let count = annotations_handle.row_count();
@@ -839,7 +959,7 @@ fn main() -> Result<(), slint::PlatformError> {
         if let Some(idx) = target_index {
             if let Some(mut ann) = annotations_handle.row_data(idx) {
                 if let Some((new_x, new_y, new_w, new_h)) =
-                    auto_resize_stub(&ann, gesture_kind.as_str(), *image_dimensions.borrow())
+                    auto_resize_stub(&ann, gesture_kind.as_str(), *image_dimensions_for_auto.borrow())
                 {
                     ann.x = new_x;
                     ann.y = new_y;
@@ -1119,6 +1239,59 @@ fn main() -> Result<(), slint::PlatformError> {
         }
         println!("Resize finished");
     });
+
+    // Global view change tracking for persistence
+    {
+        let ds_state = dataset_state.clone();
+        let image_dimensions = image_dimensions.clone();
+        ui.on_view_changed(move |px, py, z| {
+            if let Ok(mut ds_opt) = ds_state.try_borrow_mut() {
+                if let Some(ds) = ds_opt.as_mut() {
+                    ds.global_view = Some(ViewState { pan_x: px, pan_y: py, zoom: z });
+                    ds.last_view_image_size = Some(*image_dimensions.borrow());
+                }
+            }
+        });
+    }
+
+    // Save dataset callback (Ctrl/Cmd+S)
+    {
+        let ds_state = dataset_state.clone();
+        let annotations_model = annotations.clone();
+        let image_dimensions = image_dimensions.clone();
+        let ui_handle = ui.as_weak();
+        // manual save via Ctrl/Cmd+S
+        ui.on_save_dataset(move || {
+            if let (Ok(mut ds_opt), Some(ui)) = (ds_state.try_borrow_mut(), ui_handle.upgrade()) {
+                if let Some(ds) = ds_opt.as_mut() {
+                    // ensure current image state is cached
+                    save_current_state(ds, &annotations_model, &ui, *image_dimensions.borrow());
+                    match save_all(ds) {
+                        Ok(_) => ui.set_status_text("Save successful".into()),
+                        Err(e) => ui.set_status_text(format!("Save failed: {e}").into()),
+                    }
+                }
+            }
+        });
+    }
+
+    // Auto-save timer every 5 seconds
+    {
+        let ds_state = dataset_state.clone();
+        let annotations_model = annotations.clone();
+        let image_dimensions = image_dimensions.clone();
+        let ui_handle = ui.as_weak();
+        slint::Timer::default().start(slint::TimerMode::Repeated, std::time::Duration::from_secs(5), move || {
+            if let (Ok(mut ds_opt), Some(ui)) = (ds_state.try_borrow_mut(), ui_handle.upgrade()) {
+                if let Some(ds) = ds_opt.as_mut() {
+                    save_current_state(ds, &annotations_model, &ui, *image_dimensions.borrow());
+                    if let Err(e) = save_all(ds) {
+                        ui.set_status_text(format!("Autosave failed: {e}").into());
+                    }
+                }
+            }
+        });
+    }
 
     ui.run()
 }
