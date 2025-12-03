@@ -15,6 +15,7 @@ struct Annotation {
     rotation: float,
     selected: bool,
     class: int,  // Classification: 1-999 for multi-digit support
+    state: string, // Pending | Accepted | Rejected | Manual
     vertices: string,  // For polygons: "x1,y1;x2,y2;x3,y3" format
     polygon-vertices: [PolygonVertex],  // Parsed vertices for rendering
     polygon-path-commands: string,  // SVG path commands for rendering edges
@@ -58,6 +59,14 @@ export component AppWindow inherits Window {
 
     // Phase 3: Resize state
     in-out property <bool> is-resizing: false;
+
+    // Phase 5C: per-image view memory
+    in-out property <float> view-pan-x: 0.0;
+    in-out property <float> view-pan-y: 0.0;
+    in-out property <float> view-zoom: 1.0;
+    callback reset-view();
+    callback apply-zoom-centered(float);
+    callback view-changed(float, float, float);
 
     // Helper to generate SVG path commands from vertices string
     pure function generate-polygon-path(vertices-str: string) -> string {
@@ -190,11 +199,16 @@ export component AppWindow inherits Window {
                 background: #222222;
                 clip: true;
 
-                property <float> fit-scale: (root.image-source.width > 0 && root.image-source.height > 0) ? min(self.width / (root.image-source.width * 1px), self.height / (root.image-source.height * 1px)) : 1.0;
+                property <float> fit-scale: {
+                    let base = (root.image-source.width > 0 && root.image-source.height > 0) ? min(self.width / (root.image-source.width * 1px), self.height / (root.image-source.height * 1px)) : 1.0;
+                    max(0.1, base)
+                };
 
-                in-out property <float> zoom-level: fit-scale;
-                in-out property <length> pan-x: (self.width - (root.image-source.width * 1px * self.zoom-level)) / 2;
-                in-out property <length> pan-y: (self.height - (root.image-source.height * 1px * self.zoom-level)) / 2;
+                in-out property <float> zoom-level <=> root.view-zoom;
+                in-out property <float> pan-x-raw <=> root.view-pan-x;
+                in-out property <float> pan-y-raw <=> root.view-pan-y;
+                property <length> pan-x: self.pan-x-raw * 1px;
+                property <length> pan-y: self.pan-y-raw * 1px;
 
                 Image {
                     source: root.image-source;
@@ -264,8 +278,9 @@ export component AppWindow inherits Window {
                             root.update-drawing(img-x, img-y);
                         } else if (self.pressed && root.current-tool == "Neutral" && !root.q-key-held) {
                             // Pan behavior
-                            image-container.pan-x = self.start-pan-x + (self.mouse-x - self.pressed-x);
-                            image-container.pan-y = self.start-pan-y + (self.mouse-y - self.pressed-y);
+                            image-container.pan-x-raw = (self.start-pan-x + (self.mouse-x - self.pressed-x)) / 1px;
+                            image-container.pan-y-raw = (self.start-pan-y + (self.mouse-y - self.pressed-y)) / 1px;
+                            root.view-changed(image-container.pan-x-raw, image-container.pan-y-raw, image-container.zoom-level);
                         }
                     }
 
@@ -281,9 +296,10 @@ export component AppWindow inherits Window {
                             // Zoom centered on cursor
                             let mouse-x-rel = self.mouse-x - image-container.pan-x;
                             let mouse-y-rel = self.mouse-y - image-container.pan-y;
-                            image-container.pan-x = self.mouse-x - mouse-x-rel * (clamped-zoom / old-zoom);
-                            image-container.pan-y = self.mouse-y - mouse-y-rel * (clamped-zoom / old-zoom);
+                            image-container.pan-x-raw = (self.mouse-x - mouse-x-rel * (clamped-zoom / old-zoom)) / 1px;
+                            image-container.pan-y-raw = (self.mouse-y - mouse-y-rel * (clamped-zoom / old-zoom)) / 1px;
                             image-container.zoom-level = clamped-zoom;
+                            root.view-changed(image-container.pan-x-raw, image-container.pan-y-raw, image-container.zoom-level);
                             return accept;
                         }
                         reject
@@ -346,6 +362,10 @@ export component AppWindow inherits Window {
                     background: #00000000; // Transparent
                     width: 100%;
                     height: 100%;
+
+                    property <bool> hidden: annotation.state == "Rejected";
+                    property <color> stroke-color: annotation.state == "Pending" ? #f7c948 : (annotation.state == "Manual" ? #4ea1ff : #3ddc97);
+                    property <color> fill-color: annotation.state == "Pending" ? #f7c94822 : (annotation.state == "Manual" ? #4ea1ff22 : #3ddc9722);
                     
                     // Calculate screen coordinates
                     property <length> screen-x: image-container.pan-x + (annotation.x * 1px * image-container.zoom-level);
@@ -361,47 +381,47 @@ export component AppWindow inherits Window {
                     property <length> cy: self.screen-y + self.screen-h / 2;
 
                     // Selection Bounding Box (for TouchArea)
-                    property <length> sel-w: annotation.type == "point" ? 20px : self.screen-w;
-                    property <length> sel-h: annotation.type == "point" ? 20px : self.screen-h;
+                property <length> sel-w: annotation.type == "point" ? 20px : self.screen-w;
+                property <length> sel-h: annotation.type == "point" ? 20px : self.screen-h;
 
                     // Point (Circle)
                     Rectangle {
-                        visible: annotation.type == "point";
+                        visible: !annotation-rect.hidden && annotation.type == "point";
                         x: annotation-rect.screen-x - 5px;
                         y: annotation-rect.screen-y - 5px;
                         width: 10px;
                         height: 10px;
                         border-radius: 5px;
-                        background: annotation.selected ? #00FF00 : #FF0000;
+                        background: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
                     }
 
                     // Standard BBox (Rectangle)
                     Rectangle {
-                        visible: annotation.type == "bbox";
+                        visible: !annotation-rect.hidden && annotation.type == "bbox";
                         x: annotation-rect.screen-x;
                         y: annotation-rect.screen-y;
                         width: annotation-rect.screen-w;
                         height: annotation-rect.screen-h;
                         border-width: 2px;
-                        border-color: annotation.selected ? #00FF00 : #FF0000;
-                        background: #00000000;
+                        border-color: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
+                        background: annotation.selected ? #00FF0020 : annotation-rect.fill-color;
                     }
 
                     // Rotated BBox (using transform-rotation)
                     Rectangle {
-                        visible: annotation.type == "rbbox";
+                        visible: !annotation-rect.hidden && annotation.type == "rbbox";
                         x: annotation-rect.screen-x;
                         y: annotation-rect.screen-y;
                         width: annotation-rect.screen-w;
                         height: annotation-rect.screen-h;
                         border-width: 2px;
-                        border-color: annotation.selected ? #00FF00 : #FF0000;
-                        background: #00000000;
+                        border-color: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
+                        background: annotation.selected ? #00FF0020 : annotation-rect.fill-color;
                         transform-rotation: annotation-rect.rot;
                     }
 
                     // Polygon rendering - draw actual connected edges
-                    if annotation.type == "polygon" && annotation.polygon-path-commands != "": Rectangle {
+                    if !annotation-rect.hidden && annotation.type == "polygon" && annotation.polygon-path-commands != "": Rectangle {
                         background: #00000000;
                         width: 100%;
                         height: 100%;
@@ -415,9 +435,9 @@ export component AppWindow inherits Window {
                             width: root.image-source.width * 1px * image-container.zoom-level;
                             height: root.image-source.height * 1px * image-container.zoom-level;
 
-                            stroke: annotation.selected ? #00FF00 : #FF00FF;
+                            stroke: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
                             stroke-width: 3px;
-                            fill: #FF00FF20;  // Translucent magenta fill
+                            fill: annotation.selected ? #00FF0020 : annotation-rect.fill-color;
 
                             // Use dynamically generated SVG path commands
                             commands: annotation.polygon-path-commands;
@@ -430,17 +450,18 @@ export component AppWindow inherits Window {
                             width: 10px;
                             height: 10px;
                             border-radius: 5px;
-                            background: annotation.selected ? #00FF00 : #FF00FF;
+                            background: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
                         }
                     }
 
                     // Class label (shows class number)
                     Rectangle {
+                        visible: !annotation-rect.hidden;
                         x: annotation-rect.screen-x;
                         y: annotation-rect.screen-y - 20px;
-                        width: 30px;
+                        width: 32px;
                         height: 18px;
-                        background: annotation.selected ? #00FF00 : #FF0000;
+                        background: annotation.selected ? #00FF00 : annotation-rect.stroke-color;
                         border-radius: 3px;
 
                         Text {
@@ -453,7 +474,7 @@ export component AppWindow inherits Window {
                     }
 
                     // Resize handles (only for selected bbox/rbbox, not in polygon mode)
-                    if annotation.selected && (annotation.type == "bbox" || annotation.type == "rbbox") && !root.polygon-mode-active: Rectangle {
+                    if annotation.selected && !annotation-rect.hidden && (annotation.type == "bbox" || annotation.type == "rbbox") && !root.polygon-mode-active: Rectangle {
                         property <length> handle-size: 8px;
                         property <length> half-handle: self.handle-size / 2;
                         background: #00000000;
@@ -729,6 +750,7 @@ export component AppWindow inherits Window {
 
                     // Only intercept clicks when NOT in polygon mode
                     if !root.polygon-mode-active: TouchArea {
+                        visible: !annotation-rect.hidden;
                         x: annotation-rect.cx - annotation-rect.sel-w / 2;
                         y: annotation-rect.cy - annotation-rect.sel-h / 2;
                         width: annotation-rect.sel-w;
@@ -789,10 +811,50 @@ export component AppWindow inherits Window {
         }
     }
 
+    // Reset view to fit the image in the container
+    reset-view => {
+        if (image-container.width <= 0px || image-container.height <= 0px || root.image-source.width <= 0 || root.image-source.height <= 0) {
+            return;
+        }
+        let fs = max(0.1, image-container.fit-scale);
+        root.view-zoom = fs;
+        root.view-pan-x = (image-container.width - (root.image-source.width * 1px * fs)) / 2 / 1px;
+        root.view-pan-y = (image-container.height - (root.image-source.height * 1px * fs)) / 2 / 1px;
+        root.view-changed(root.view-pan-x, root.view-pan-y, root.view-zoom);
+    }
+
+    // Center the image for a given zoom, keeping pan consistent.
+    apply-zoom-centered(zoom) => {
+        if (image-container.width <= 0px || image-container.height <= 0px || root.image-source.width <= 0 || root.image-source.height <= 0) {
+            return;
+        }
+        let z = max(0.1, zoom);
+        root.view-zoom = z;
+        // Center image within container for this zoom.
+        root.view-pan-x = (image-container.width - (root.image-source.width * 1px * z)) / 2 / 1px;
+        root.view-pan-y = (image-container.height - (root.image-source.height * 1px * z)) / 2 / 1px;
+        root.view-changed(root.view-pan-x, root.view-pan-y, root.view-zoom);
+    }
+
     // Keyboard handler (must be at root level)
     FocusScope {
         key-pressed(event) => {
-            if (event.text == "b" || event.text == "B") {
+            if (event.text == " " && event.modifiers.shift) {
+                root.prev-image();
+                accept
+            } else if (event.text == " ") {
+                root.next-image();
+                accept
+            } else if (event.text == "Left" || event.text == "ArrowLeft") {
+                root.prev-image();
+                accept
+            } else if (event.text == "Right" || event.text == "ArrowRight") {
+                root.next-image();
+                accept
+            } else if ((event.text == "0" && (event.modifiers.control || event.modifiers.meta)) || event.text == "h" || event.text == "H") {
+                root.reset-view();
+                accept
+            } else if (event.text == "b" || event.text == "B") {
                 root.current-tool = "BBox (B)";
                 accept
             } else if (event.text == "c" || event.text == "C") {

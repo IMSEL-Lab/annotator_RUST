@@ -99,6 +99,10 @@ fn load_dataset(path: &Path) -> Result<DatasetState, String> {
     Ok(DatasetState {
         entries,
         current_index: 0,
+        stored_annotations: Vec::new(),
+        view_states: Vec::new(),
+        global_view: None,
+        last_view_image_size: None,
     })
 }
 
@@ -149,6 +153,7 @@ fn load_yolo_annotations(
             rotation: 0.0,
             selected: false,
             class: cls,
+            state: "Pending".into(),
             vertices: "".into(),
             polygon_vertices: Default::default(),
             polygon_path_commands: "".into(),
@@ -164,6 +169,58 @@ fn replace_annotations(model: &slint::VecModel<Annotation>, anns: Vec<Annotation
     for ann in anns {
         model.push(ann);
     }
+}
+
+fn snapshot_annotations(model: &slint::VecModel<Annotation>) -> Vec<Annotation> {
+    let mut out = Vec::with_capacity(model.row_count());
+    for i in 0..model.row_count() {
+        if let Some(ann) = model.row_data(i) {
+            out.push(ann);
+        }
+    }
+    out
+}
+
+fn next_id_from_annotations(anns: &[Annotation], default_start: i32) -> i32 {
+    anns.iter().map(|a| a.id).max().map(|m| m + 1).unwrap_or(default_start)
+}
+
+fn get_view_state(ui: &AppWindow) -> ViewState {
+    ViewState {
+        pan_x: ui.get_view_pan_x(),
+        pan_y: ui.get_view_pan_y(),
+        zoom: ui.get_view_zoom().max(0.1),
+    }
+}
+
+fn apply_view_state(ui: &AppWindow, vs: &ViewState) {
+    let safe_zoom = if vs.zoom <= 0.0 || !vs.zoom.is_finite() { 1.0 } else { vs.zoom };
+    ui.set_view_pan_x(vs.pan_x);
+    ui.set_view_pan_y(vs.pan_y);
+    ui.set_view_zoom(safe_zoom);
+
+    // Also push into global view change callback to keep downstream state coherent
+    ui.invoke_view_changed(vs.pan_x, vs.pan_y, safe_zoom);
+}
+
+fn sizes_close(a: (f32, f32), b: (f32, f32), tolerance: f32) -> bool {
+    (a.0 - b.0).abs() <= tolerance && (a.1 - b.1).abs() <= tolerance
+}
+
+fn save_current_state(
+    ds: &mut DatasetState,
+    annotations: &slint::VecModel<Annotation>,
+    ui: &AppWindow,
+    img_size: (f32, f32),
+) {
+    let idx = ds.current_index;
+    if idx >= ds.entries.len() {
+        return;
+    }
+    ds.stored_annotations[idx] = Some(snapshot_annotations(annotations));
+    ds.view_states[idx] = Some(get_view_state(ui));
+    ds.global_view = ds.view_states[idx].clone();
+    ds.last_view_image_size = Some(img_size);
 }
 
 // Helper function to parse vertices string into PolygonVertex array
@@ -259,10 +316,21 @@ struct DatasetEntry {
     labels_path: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone, Default)]
+struct ViewState {
+    pan_x: f32,
+    pan_y: f32,
+    zoom: f32,
+}
+
 #[derive(Debug, Clone)]
 struct DatasetState {
     entries: Vec<DatasetEntry>,
     current_index: usize,
+    stored_annotations: Vec<Option<Vec<Annotation>>>,
+    view_states: Vec<Option<ViewState>>,
+    global_view: Option<ViewState>,
+    last_view_image_size: Option<(f32, f32)>,
 }
 
 fn main() -> Result<(), slint::PlatformError> {
@@ -285,6 +353,10 @@ fn main() -> Result<(), slint::PlatformError> {
     if let Some(ds_path) = args.get(1) {
         match load_dataset(Path::new(ds_path)) {
             Ok(state) => {
+                let len = state.entries.len();
+                let mut state = state;
+                state.stored_annotations = vec![None; len];
+                state.view_states = vec![None; len];
                 *dataset_state.borrow_mut() = Some(state);
             }
             Err(e) => {
@@ -306,9 +378,16 @@ fn main() -> Result<(), slint::PlatformError> {
         Rc::new(move |index: usize| {
             let mut ds_opt = dataset_state.borrow_mut();
             let Some(ds) = ds_opt.as_mut() else { return; };
+            if ds.stored_annotations.len() != ds.entries.len() {
+                ds.stored_annotations.resize(ds.entries.len(), None);
+            }
+            if ds.view_states.len() != ds.entries.len() {
+                ds.view_states.resize(ds.entries.len(), None);
+            }
             if index >= ds.entries.len() {
                 return;
             }
+
             ds.current_index = index;
             let entry = ds.entries[index].clone();
 
@@ -331,12 +410,28 @@ fn main() -> Result<(), slint::PlatformError> {
                     )
                 }
             };
+            println!("{}", status_msg);
 
             *image_dimensions.borrow_mut() = img_size;
 
-            let annotations_for_image = load_yolo_annotations(&entry, img_size, 1000);
-            replace_annotations(&annotations, annotations_for_image);
-            draw_state.borrow_mut().next_id = 2000;
+            // Load annotations from cache if available; otherwise from disk, then cache.
+            let mut annotations_for_image = if let Some(cached) = ds.stored_annotations.get(index).and_then(|v| v.clone()) {
+                cached
+            } else {
+                let anns = load_yolo_annotations(&entry, img_size, 1000);
+                ds.stored_annotations[index] = Some(anns.clone());
+                anns
+            };
+
+            // Clear selection when (re)loading to avoid stale references.
+            for ann in annotations_for_image.iter_mut() {
+                ann.selected = false;
+            }
+
+            replace_annotations(&annotations, annotations_for_image.clone());
+
+            // Pick next id above existing annotations.
+            draw_state.borrow_mut().next_id = next_id_from_annotations(&annotations_for_image, 2000);
 
             if let Some(ui) = ui_handle.upgrade() {
                 ui.set_image_source(image);
@@ -348,6 +443,37 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.set_current_image_name(fname.into());
                 ui.set_dataset_position(format!("{} / {}", index + 1, ds.entries.len()).into());
                 ui.set_status_text(status_msg.into());
+
+                // Apply view: prefer global (if same-ish size), else per-image cache, else reset.
+                if let (Some(gv), Some(last_size)) =
+                    (ds.global_view.clone(), ds.last_view_image_size)
+                {
+                    if sizes_close(last_size, img_size, 2.0) {
+                        apply_view_state(&ui, &gv);
+                        ds.view_states[index] = Some(gv.clone());
+                        println!(
+                            "Applied global view to index {}: pan=({}, {}), zoom={}",
+                            index, gv.pan_x, gv.pan_y, gv.zoom
+                        );
+                        return;
+                    }
+                }
+
+                if let Some(vs) = ds.view_states.get(index).and_then(|v| v.clone()) {
+                    apply_view_state(&ui, &vs);
+                    println!(
+                        "Applied cached view to index {}: pan=({}, {}), zoom={}",
+                        index, vs.pan_x, vs.pan_y, vs.zoom
+                    );
+                } else {
+                    ui.invoke_reset_view();
+                    let vs = get_view_state(&ui);
+                    ds.view_states[index] = Some(vs.clone());
+                    println!(
+                        "Initial reset view for index {}: pan=({}, {}), zoom={}",
+                        index, vs.pan_x, vs.pan_y, vs.zoom
+                    );
+                }
             }
         })
     };
@@ -383,14 +509,22 @@ fn main() -> Result<(), slint::PlatformError> {
     // Dataset navigation callbacks
     let loader_next = loader.clone();
     let ds_state_next = dataset_state.clone();
+    let annotations_for_save = annotations.clone();
+    let ui_for_save = ui.as_weak();
+    let image_dimensions_next = image_dimensions.clone();
     ui.on_next_image(move || {
         // Drop the immutable borrow before calling the loader (which mutably borrows)
         let next_idx = {
-            let ds_ref = ds_state_next.borrow();
-            let Some(ds) = ds_ref.as_ref() else { return; };
+            let mut ds_ref = ds_state_next.borrow_mut();
+            let Some(ds) = ds_ref.as_mut() else { return; };
             if ds.entries.is_empty() {
                 return;
             }
+
+            if let Some(ui) = ui_for_save.upgrade() {
+                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_next.borrow());
+            }
+
             let mut idx = ds.current_index;
             if idx + 1 < ds.entries.len() {
                 idx += 1;
@@ -403,13 +537,21 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let loader_prev = loader.clone();
     let ds_state_prev = dataset_state.clone();
+    let annotations_for_save = annotations.clone();
+    let ui_for_save = ui.as_weak();
+    let image_dimensions_prev = image_dimensions.clone();
     ui.on_prev_image(move || {
         let prev_idx = {
-            let ds_ref = ds_state_prev.borrow();
-            let Some(ds) = ds_ref.as_ref() else { return; };
+            let mut ds_ref = ds_state_prev.borrow_mut();
+            let Some(ds) = ds_ref.as_mut() else { return; };
             if ds.entries.is_empty() {
                 return;
             }
+
+            if let Some(ui) = ui_for_save.upgrade() {
+                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_prev.borrow());
+            }
+
             if ds.current_index == 0 {
                 0
             } else {
@@ -419,6 +561,20 @@ fn main() -> Result<(), slint::PlatformError> {
 
         loader_prev(prev_idx);
     });
+
+    // Track global view changes (pan/zoom) to reuse across images
+    {
+        let ds_state = dataset_state.clone();
+        let image_dimensions = image_dimensions.clone();
+        ui.on_view_changed(move |px, py, z| {
+            if let Ok(mut ds_opt) = ds_state.try_borrow_mut() {
+                if let Some(ds) = ds_opt.as_mut() {
+                    ds.global_view = Some(ViewState { pan_x: px, pan_y: py, zoom: z });
+                    ds.last_view_image_size = Some(*image_dimensions.borrow());
+                }
+            }
+        });
+    }
 
     ui.on_log_debug(move |msg| {
         use std::io::Write;
@@ -498,6 +654,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         rotation: 0.0,
                         selected: false,
                         class,
+                        state: "Manual".into(),
                         vertices: "".into(),
                         polygon_vertices: Default::default(),
                         polygon_path_commands: "".into(),
@@ -516,6 +673,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     rotation: 0.0,
                     selected: false,
                     class,
+                    state: "Manual".into(),
                     vertices: "".into(),
                     polygon_vertices: Default::default(),
                     polygon_path_commands: "".into(),
@@ -541,6 +699,9 @@ fn main() -> Result<(), slint::PlatformError> {
         for i in (0..count).rev() {
             // Reverse to get topmost first
             if let Some(ann) = annotations_handle.row_data(i) {
+                if ann.state == "Rejected" {
+                    continue;
+                }
                 // Check if point is inside this annotation
                 let inside = if ann.r#type.as_str() == "point" {
                     // For points, use a small hit radius (10 pixels)
@@ -553,7 +714,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 };
 
                 if inside {
-                    annotations_handle.remove(i);
+                    let mut rejected = ann;
+                    rejected.state = "Rejected".into();
+                    rejected.selected = false;
+                    annotations_handle.set_row_data(i, rejected);
                     if let Some(ui) = ui_handle.upgrade() {
                         ui.set_status_text("Annotation deleted".into());
                     }
@@ -567,9 +731,13 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui_handle = ui.as_weak();
     let annotations_handle = annotations.clone();
     ui.on_delete_annotation(move |index| {
-        annotations_handle.remove(index as usize);
-        if let Some(ui) = ui_handle.upgrade() {
-            ui.set_status_text("Annotation deleted (double-click)".into());
+        if let Some(mut ann) = annotations_handle.row_data(index as usize) {
+            ann.state = "Rejected".into();
+            ann.selected = false;
+            annotations_handle.set_row_data(index as usize, ann);
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_status_text("Annotation deleted (double-click)".into());
+            }
         }
     });
 
@@ -582,6 +750,9 @@ fn main() -> Result<(), slint::PlatformError> {
         for i in (0..count).rev() {
             // Reverse to get topmost first
             if let Some(mut ann) = annotations_handle.row_data(i) {
+                if ann.state == "Rejected" {
+                    continue;
+                }
                 // Check if point is inside this annotation
                 let inside = if ann.r#type.as_str() == "point" {
                     // For points, use a small hit radius (10 pixels)
@@ -595,6 +766,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
                 if inside {
                     ann.class = new_class;
+                    if ann.state == "Pending" {
+                        ann.state = "Accepted".into();
+                    }
                     annotations_handle.set_row_data(i, ann);
                     if let Some(ui) = ui_handle.upgrade() {
                         ui.set_status_text(
@@ -615,8 +789,11 @@ fn main() -> Result<(), slint::PlatformError> {
         let count = annotations_handle.row_count();
         for i in 0..count {
             if let Some(mut ann) = annotations_handle.row_data(i) {
-                if ann.selected {
+                if ann.selected && ann.state != "Rejected" {
                     ann.class = new_class;
+                    if ann.state == "Pending" {
+                        ann.state = "Accepted".into();
+                    }
                     annotations_handle.set_row_data(i, ann);
                     updated = true;
                 }
@@ -643,6 +820,9 @@ fn main() -> Result<(), slint::PlatformError> {
         // Find topmost bbox containing the click
         for i in (0..count).rev() {
             if let Some(ann) = annotations_handle.row_data(i) {
+                if ann.state == "Rejected" {
+                    continue;
+                }
                 let is_box = ann.r#type.as_str() == "bbox" || ann.r#type.as_str() == "rbbox";
                 let inside = img_x >= ann.x
                     && img_x <= ann.x + ann.width
@@ -665,6 +845,9 @@ fn main() -> Result<(), slint::PlatformError> {
                     ann.y = new_y;
                     ann.width = new_w;
                     ann.height = new_h;
+                    if ann.state == "Pending" {
+                        ann.state = "Accepted".into();
+                    }
                     annotations_handle.set_row_data(idx, ann);
 
                     if let Some(ui) = ui_handle.upgrade() {
@@ -778,6 +961,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     rotation: 0.0,
                     selected: false,
                     class,
+                    state: "Manual".into(),
                     vertices: vertices_str.clone().into(),
                     polygon_vertices: std::rc::Rc::new(slint::VecModel::from(polygon_verts)).into(),
                     polygon_path_commands: path_commands.into(),
@@ -829,6 +1013,9 @@ fn main() -> Result<(), slint::PlatformError> {
     // When a resize handle is grabbed, remember original bounds so deltas can be applied.
     ui.on_start_resize(move |index, handle_type| {
         if let Some(ann) = annotations_handle.row_data(index as usize) {
+            if ann.state == "Rejected" {
+                return;
+            }
             let mut state = resize_state_handle.borrow_mut();
             state.annotation_index = index as usize;
             state.handle_type = handle_type.to_string();
@@ -850,6 +1037,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let index = state.annotation_index;
 
         if let Some(mut ann) = annotations_handle.row_data(index) {
+            if ann.state == "Rejected" {
+                return;
+            }
             let handle = state.handle_type.as_str();
 
             // Calculate new bounds based on handle type
@@ -915,6 +1105,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 _ => {}
             }
 
+            if ann.state == "Pending" {
+                ann.state = "Accepted".into();
+            }
             annotations_handle.set_row_data(index, ann);
         }
     });
