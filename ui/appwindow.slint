@@ -93,6 +93,10 @@ export component AppWindow inherits Window {
     // Menu dropdown state
     in-out property <string> open-menu: "";
 
+    // Frame completion
+    in-out property <bool> frame-completed: false;
+    callback toggle-frame-completion();
+
     // Phase 3: Settings
     in-out property <bool> settings-dialog-visible: false;
     in-out property <string> theme-setting: "dark";
@@ -305,6 +309,44 @@ export component AppWindow inherits Window {
                     border-width: 2px;
                     border-color: Theme.current.accent-primary;  // Cyan/blue for preview
                     background: Theme.current.accent-primary.with-alpha(0.13);  // Translucent
+                }
+
+                // BBox mode indicator
+                if root.current-tool == "BBox (B)": Rectangle {
+                    x: 10px;
+                    y: 50px;
+                    width: 280px;
+                    height: 40px;
+                    background: Theme.current.accent-primary;
+                    border-radius: 5px;
+
+                    Text {
+                        text: "BBox Mode (B) - Click and drag to draw";
+                        color: #ffffff;
+                        font-size: 13px;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Center Point mode indicator
+                if root.current-tool == "Point (C)": Rectangle {
+                    x: 10px;
+                    y: 50px;
+                    width: 280px;
+                    height: 40px;
+                    background: Theme.current.accent-secondary;
+                    border-radius: 5px;
+
+                    Text {
+                        text: "Center Point Mode (C) - Click to place";
+                        color: #ffffff;
+                        font-size: 13px;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
                 }
 
                 // Polygon mode indicator
@@ -801,6 +843,15 @@ export component AppWindow inherits Window {
                     vertical-alignment: center;
                 }
 
+                // Completion indicator
+                if root.frame-completed: Text {
+                    text: "✓";
+                    color: Theme.current.accepted;
+                    font-size: 16px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+
                 Rectangle {
                     width: 1px;
                     height: 20px;
@@ -1259,6 +1310,9 @@ export component AppWindow inherits Window {
                 accept
             } else if ((event.text == "0" && (event.modifiers.control || event.modifiers.meta)) || event.text == "h" || event.text == "H") {
                 root.reset-view();
+                accept
+            } else if (event.text == "f" || event.text == "F") {
+                root.toggle-frame-completion();
                 accept
             } else if ((event.text == "s" || event.text == "S") && (event.modifiers.control || event.modifiers.meta)) {
                 root.save-dataset();
