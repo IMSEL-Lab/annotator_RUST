@@ -83,16 +83,19 @@ export component BottomBar {
             VerticalDivider { }
 
             // ================================================================
-            // STATUS TEXT (Flexible width)
+            // STATUS TEXT (Flexible width with overflow handling)
             // ================================================================
             Rectangle {
                 horizontal-stretch: 1;
+                min-width: 100px;  // Ensure minimum space
 
                 MaterialText {
                     text: root.status-text;
                     style: MaterialTypography.label-medium;
                     color: MaterialPalette.on-surface;
                     vertical-alignment: center;
+                    overflow: elide;  // Add ellipsis (...) when text is too long
+                    width: 100%;  // Take full width of container
                 }
             }
 

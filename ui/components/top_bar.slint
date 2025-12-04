@@ -156,11 +156,11 @@ export component TopBar {
                 file-menu-button := MenuButton {
                     text: "File";
                     is-open: root.file-menu-open;
-                    bg-color: MaterialPalette.secondary-container;
-                    bg-hover-color: MaterialPalette.secondary-container;
-                    bg-active-color: MaterialPalette.secondary;
-                    text-color: MaterialPalette.on-secondary-container;
-                    text-active-color: MaterialPalette.on-secondary;
+                    bg-color: MaterialPalette.primary-container;
+                    bg-hover-color: MaterialPalette.primary-container;
+                    bg-active-color: MaterialPalette.primary;
+                    text-color: MaterialPalette.on-primary-container;
+                    text-active-color: MaterialPalette.on-primary;
                     clicked => {
                         root.view-menu-open = false;
                         root.tools-menu-open = false;
@@ -212,11 +212,11 @@ export component TopBar {
                 tools-menu-button := MenuButton {
                     text: "Tools";
                     is-open: root.tools-menu-open;
-                    bg-color: MaterialPalette.error-container;
-                    bg-hover-color: MaterialPalette.error-container;
-                    bg-active-color: MaterialPalette.error;
-                    text-color: MaterialPalette.on-error-container;
-                    text-active-color: MaterialPalette.on-error;
+                    bg-color: MaterialPalette.secondary-container;
+                    bg-hover-color: MaterialPalette.secondary-container;
+                    bg-active-color: MaterialPalette.secondary;
+                    text-color: MaterialPalette.on-secondary-container;
+                    text-active-color: MaterialPalette.on-secondary;
                     clicked => {
                         root.file-menu-open = false;
                         root.view-menu-open = false;
@@ -250,18 +250,18 @@ export component TopBar {
                 // First button (skip to start)
                 NavButton {
                     icon: Icons.skip-previous;
-                    bg-color: MaterialPalette.tertiary-container;
-                    bg-hover-color: MaterialPalette.tertiary;
-                    icon-color: MaterialPalette.on-tertiary-container;
+                    bg-color: MaterialPalette.primary-container;
+                    bg-hover-color: MaterialPalette.primary;
+                    icon-color: MaterialPalette.on-primary-container;
                     clicked => { root.first-image(); }
                 }
 
                 // Previous button
                 NavButton {
                     icon: Icons.chevron-backward;
-                    bg-color: MaterialPalette.secondary-container;
-                    bg-hover-color: MaterialPalette.secondary;
-                    icon-color: MaterialPalette.on-secondary-container;
+                    bg-color: MaterialPalette.tertiary-container;
+                    bg-hover-color: MaterialPalette.tertiary;
+                    icon-color: MaterialPalette.on-tertiary-container;
                     clicked => { root.prev-image(); }
                 }
 
@@ -277,18 +277,18 @@ export component TopBar {
                 // Next button
                 NavButton {
                     icon: Icons.chevron-forward;
-                    bg-color: MaterialPalette.secondary-container;
-                    bg-hover-color: MaterialPalette.secondary;
-                    icon-color: MaterialPalette.on-secondary-container;
+                    bg-color: MaterialPalette.tertiary-container;
+                    bg-hover-color: MaterialPalette.tertiary;
+                    icon-color: MaterialPalette.on-tertiary-container;
                     clicked => { root.next-image(); }
                 }
 
                 // Last button (skip to end)
                 NavButton {
                     icon: Icons.skip-next;
-                    bg-color: MaterialPalette.tertiary-container;
-                    bg-hover-color: MaterialPalette.tertiary;
-                    icon-color: MaterialPalette.on-tertiary-container;
+                    bg-color: MaterialPalette.primary-container;
+                    bg-hover-color: MaterialPalette.primary;
+                    icon-color: MaterialPalette.on-primary-container;
                     clicked => { root.last-image(); }
                 }
             }
@@ -305,11 +305,11 @@ export component TopBar {
                 MenuButton {
                     text: "Save";
                     is-open: false;
-                    bg-color: MaterialPalette.primary-container;
-                    bg-hover-color: MaterialPalette.primary;
-                    bg-active-color: MaterialPalette.primary;
-                    text-color: MaterialPalette.on-primary-container;
-                    text-active-color: MaterialPalette.on-primary;
+                    bg-color: MaterialPalette.secondary-container;
+                    bg-hover-color: MaterialPalette.secondary;
+                    bg-active-color: MaterialPalette.secondary;
+                    text-color: MaterialPalette.on-secondary-container;
+                    text-active-color: MaterialPalette.on-secondary;
                     clicked => {
                         root.file-save();
                     }
