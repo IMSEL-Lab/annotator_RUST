@@ -9,6 +9,13 @@ export struct ClassItem {
     shortcut: string,
 }
 
+// Hierarchy navigation item
+export struct HierarchyOption {
+    key: int,
+    label: string,
+    is-leaf: bool,
+}
+
 // Left sidebar component with tools and classes
 export component Sidebar {
     in property <[ClassItem]> classes;
@@ -18,8 +25,15 @@ export component Sidebar {
     in property <length> sidebar-width: 250px;
     in-out property <bool> help-expanded: false;
 
+    // Hierarchy mode
+    in property <bool> hierarchy-mode: false;
+    in property <string> hierarchy-breadcrumb: "";
+    in property <string> hierarchy-prompt: "Select category (1-5)";
+    in property <[HierarchyOption]> hierarchy-options: [];
+
     callback class-selected(int);
     callback tool-selected(string);
+    callback hierarchy-key-pressed(int);
 
     width: root.show-sidebar ? root.sidebar-width : 0px;
     horizontal-stretch: 0;
@@ -188,8 +202,124 @@ export component Sidebar {
                 background: Theme.current.border-dark;
             }
 
-            // Classes Section
-            Rectangle {
+            // Classes Section (Hierarchy Mode)
+            if root.hierarchy-mode: Rectangle {
+                background: Theme.current.bg-light;
+
+                VerticalBox {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "Classes (Hierarchical)";
+                        color: Theme.current.text-primary;
+                        font-size: 14px;
+                        font-weight: 600;
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.current.border-light;
+                    }
+
+                    // Breadcrumb
+                    if root.hierarchy-breadcrumb != "": Rectangle {
+                        height: 28px;
+                        background: Theme.current.bg-medium;
+                        border-radius: 4px;
+
+                        HorizontalLayout {
+                            padding: 8px;
+                            spacing: 4px;
+
+                            Text {
+                                text: root.hierarchy-breadcrumb;
+                                color: Theme.current.text-secondary;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Prompt
+                    Text {
+                        text: root.hierarchy-prompt;
+                        color: Theme.current.text-secondary;
+                        font-size: 11px;
+                    }
+
+                    // Hierarchy options
+                    for option in root.hierarchy-options: hierarchy-option-rect := Rectangle {
+                        height: 32px;
+                        background: hierarchy-option-touch.has-hover ? Theme.current.bg-hover : transparent;
+                        border-radius: 4px;
+
+                        HorizontalLayout {
+                            padding: 6px;
+                            spacing: 8px;
+
+                            // Key indicator with color coding
+                            Rectangle {
+                                width: 24px;
+                                height: 24px;
+                                background: option.key == 1 ? #4A90E2 :  // Blue
+                                           option.key == 2 ? #50C878 :  // Green
+                                           option.key == 3 ? #E24A4A :  // Red
+                                           option.key == 4 ? #F5A623 :  // Orange
+                                           option.key == 5 ? #9B59B6 :  // Purple
+                                           Theme.current.accent-primary;
+                                border-radius: 4px;
+
+                                Text {
+                                    text: option.key;
+                                    color: #ffffff;
+                                    font-size: 13px;
+                                    font-weight: 700;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            // Label
+                            Text {
+                                text: option.label;
+                                color: Theme.current.text-primary;
+                                font-size: 13px;
+                                vertical-alignment: center;
+                            }
+
+                            // Leaf indicator
+                            if !option.is-leaf: Text {
+                                text: "▶";
+                                color: Theme.current.text-secondary;
+                                font-size: 10px;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        hierarchy-option-touch := TouchArea {
+                            clicked => {
+                                root.hierarchy-key-pressed(option.key);
+                            }
+                        }
+                    }
+
+                    // Help text
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.current.border-light;
+                    }
+
+                    Text {
+                        text: "Press ESC to go back";
+                        color: Theme.current.text-secondary;
+                        font-size: 10px;
+                    }
+                }
+            }
+
+            // Classes Section (Flat Mode)
+            if !root.hierarchy-mode: Rectangle {
                 background: Theme.current.bg-light;
 
                 VerticalBox {

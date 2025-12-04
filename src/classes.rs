@@ -12,8 +12,25 @@ pub struct ClassDefinition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HierarchicalClassNode {
+    pub key: u8,
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<HierarchicalClassNode>,
+    // Leaf properties
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClassConfig {
     pub classes: Vec<ClassDefinition>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hierarchy: Vec<HierarchicalClassNode>,
 }
 
 impl Default for ClassConfig {
@@ -51,8 +68,26 @@ impl Default for ClassConfig {
                     shortcut: Some("5".to_string()),
                 },
             ],
+            hierarchy: Vec::new(),
         }
     }
+}
+
+/// Flatten a hierarchy into a list of ClassDefinition
+pub fn flatten_hierarchy(nodes: &[HierarchicalClassNode]) -> Vec<ClassDefinition> {
+    let mut classes = Vec::new();
+    for node in nodes {
+        if let (Some(id), Some(name)) = (node.id, &node.name) {
+            classes.push(ClassDefinition {
+                id,
+                name: name.clone(),
+                color: node.color.clone(),
+                shortcut: None, // Shortcuts are handled by the hierarchy navigation
+            });
+        }
+        classes.extend(flatten_hierarchy(&node.children));
+    }
+    classes
 }
 
 /// Load class configuration from YAML file
@@ -62,6 +97,7 @@ pub fn load_classes(path: Option<&str>) -> ClassConfig {
         None => {
             // Try default locations
             let default_locations = vec![
+                "./coco_hierarchy.yaml",
                 "./classes.yaml",
                 "~/.config/annotator/classes.yaml",
             ];
@@ -86,13 +122,32 @@ pub fn load_classes(path: Option<&str>) -> ClassConfig {
     let expanded_path = shellexpand::tilde(&config_path);
 
     match std::fs::read_to_string(expanded_path.as_ref()) {
-        Ok(content) => match serde_yaml::from_str(&content) {
-            Ok(config) => config,
-            Err(e) => {
-                eprintln!("Failed to parse class config YAML: {}. Using defaults.", e);
-                ClassConfig::default()
+        Ok(content) => {
+            // Try parsing as hierarchy array first
+            if let Ok(hierarchy) = serde_yaml::from_str::<Vec<HierarchicalClassNode>>(&content) {
+                // Successfully parsed as pure hierarchy - generate ClassConfig
+                let classes = flatten_hierarchy(&hierarchy);
+                return ClassConfig {
+                    classes,
+                    hierarchy,
+                };
             }
-        },
+
+            // Try parsing as full ClassConfig
+            match serde_yaml::from_str::<ClassConfig>(&content) {
+                Ok(mut config) => {
+                    // If hierarchy exists but classes is empty, flatten hierarchy
+                    if !config.hierarchy.is_empty() && config.classes.is_empty() {
+                        config.classes = flatten_hierarchy(&config.hierarchy);
+                    }
+                    config
+                }
+                Err(e) => {
+                    eprintln!("Failed to parse class config YAML: {}. Using defaults.", e);
+                    ClassConfig::default()
+                }
+            }
+        }
         Err(e) => {
             eprintln!(
                 "Failed to read class config file '{}': {}. Using defaults.",
