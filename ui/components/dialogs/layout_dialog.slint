@@ -1,0 +1,164 @@
+// ============================================================================
+// LAYOUT DIALOG
+// ============================================================================
+// Adjust panel sizes and positions. Uses a tertiary-toned square look.
+
+import { MaterialPalette } from "../../material/ui/styling/material_palette.slint";
+import { MaterialTypography } from "../../material/ui/styling/material_typography.slint";
+import { MaterialText } from "../../material/ui/components/material_text.slint";
+import { FilledButton } from "../../material/ui/components/filled_button.slint";
+import { TextButton } from "../../material/ui/components/text_button.slint";
+import { Slider } from "../../material/ui/components/slider.slint";
+import { ScrollView } from "std-widgets.slint";
+import { ComboBox } from "std-widgets.slint";
+
+component SettingsSlider inherits VerticalLayout {
+    in property <string> label;
+    in property <string> unit: "";
+    in-out property <float> value;
+    in property <float> minimum: 0;
+    in property <float> maximum: 100;
+    spacing: 4px;
+
+    HorizontalLayout {
+        MaterialText {
+            text: root.label + ":";
+            style: MaterialTypography.body-medium;
+            color: MaterialPalette.on_surface;
+            vertical-alignment: center;
+        }
+        Rectangle { horizontal-stretch: 1; }
+        MaterialText {
+            text: Math.round(root.value) + root.unit;
+            style: MaterialTypography.body-medium;
+            color: MaterialPalette.on_tertiary;
+            vertical-alignment: center;
+        }
+    }
+    Slider {
+        value <=> root.value;
+        minimum: root.minimum;
+        maximum: root.maximum;
+    }
+}
+
+export component LayoutDialog {
+    in-out property <bool> show-dialog: false;
+    in-out property <float> sidebar-width: 250;
+    in-out property <float> topbar-height: 48;
+    in-out property <float> bottombar-height: 32;
+    in-out property <bool> sidebar-left: true;
+
+    callback apply();
+    callback cancel();
+    callback reset-to-defaults();
+
+    if root.show-dialog: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: MaterialPalette.scrim.with-alpha(0.7);
+        TouchArea { clicked => { } }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 560px;
+            height: 420px;
+            background: MaterialPalette.tertiary_container;
+            border-radius: 8px;
+            border-color: MaterialPalette.tertiary;
+            border-width: 1px;
+
+            VerticalLayout {
+                // Header
+                Rectangle {
+                    height: 52px;
+                    background: MaterialPalette.tertiary;
+
+                    HorizontalLayout {
+                        padding-left: 20px;
+                        padding-right: 12px;
+
+                        MaterialText {
+                            text: "Layout";
+                            style: MaterialTypography.title-medium;
+                            color: MaterialPalette.on_tertiary;
+                            vertical-alignment: center;
+                        }
+
+                        Rectangle { horizontal-stretch: 1; }
+
+                        TextButton { text: "Close"; clicked => { root.cancel(); } }
+                    }
+                }
+
+                Rectangle {
+                    vertical-stretch: 1;
+                    background: MaterialPalette.surface_container;
+
+                    ScrollView {
+                        VerticalLayout {
+                            padding: 20px;
+                            spacing: 16px;
+
+                            SettingsSlider {
+                                label: "Sidebar Width";
+                                unit: "px";
+                                value <=> root.sidebar-width;
+                                minimum: 200;
+                                maximum: 400;
+                            }
+
+                            SettingsSlider {
+                                label: "Top Bar Height";
+                                unit: "px";
+                                value <=> root.topbar-height;
+                                minimum: 40;
+                                maximum: 80;
+                            }
+
+                            SettingsSlider {
+                                label: "Bottom Bar Height";
+                                unit: "px";
+                                value <=> root.bottombar-height;
+                                minimum: 24;
+                                maximum: 48;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 12px;
+                                MaterialText {
+                                    text: "Sidebar Position";
+                                    width: 150px;
+                                    vertical-alignment: center;
+                                }
+                                ComboBox {
+                                    model: ["Left", "Right"];
+                                    current-value: root.sidebar-left ? "Left" : "Right";
+                                    selected => { root.sidebar-left = self.current-value == "Left"; }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 60px;
+                    background: MaterialPalette.surface_container_high;
+
+                    HorizontalLayout {
+                        padding: 12px;
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        spacing: 12px;
+
+                        TextButton { text: "Reset"; clicked => { root.reset-to-defaults(); } }
+                        Rectangle { horizontal-stretch: 1; }
+                        TextButton { text: "Cancel"; clicked => { root.cancel(); } }
+                        FilledButton { text: "Apply"; clicked => { root.apply(); } }
+                    }
+                }
+            }
+        }
+    }
+}
