@@ -1,0 +1,258 @@
+// ============================================================================
+// SIDE PANEL COMPONENT
+// ============================================================================
+// The left sidebar containing tool selection, class list, and hierarchy view
+
+import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
+import { MaterialTypography } from "../material/ui/styling/material_typography.slint";
+import { MaterialStyleMetrics } from "../material/ui/styling/material_style_metrics.slint";
+import { SegmentedButton } from "../material/ui/components/segmented_button.slint";
+import { MaterialText } from "../material/ui/components/material_text.slint";
+import { VerticalDivider } from "../material/ui/components/divider.slint";
+import { ListView } from "std-widgets.slint";
+
+// ============================================================================
+// DATA STRUCTURES
+// ============================================================================
+
+export struct ClassItem {
+    id: int,
+    name: string,
+    color: color,
+    shortcut: string,
+}
+
+export struct HierarchyOption {
+    key: int,
+    label: string,
+    is-leaf: bool,
+}
+
+// ============================================================================
+// SIDE PANEL COMPONENT
+// ============================================================================
+
+export component SidePanel {
+    // ========================================================================
+    // CLASS PROPERTIES
+    // ========================================================================
+    in property <[ClassItem]> classes;
+    in-out property <int> current-class: 1;
+
+    // ========================================================================
+    // TOOL PROPERTIES
+    // ========================================================================
+    in-out property <string> current-tool: "Neutral";
+
+    // ========================================================================
+    // VISIBILITY PROPERTIES
+    // ========================================================================
+    in property <bool> show-sidebar: true;
+    in property <length> sidebar-width: 250px;
+
+    // ========================================================================
+    // HIERARCHY PROPERTIES
+    // ========================================================================
+    in property <bool> hierarchy-mode: false;
+    in property <string> hierarchy-breadcrumb: "";
+    in property <string> hierarchy-prompt: "Select category";
+    in property <[HierarchyOption]> hierarchy-options: [];
+
+    // ========================================================================
+    // CALLBACKS
+    // ========================================================================
+    callback class-selected(int);
+    callback tool-selected(string);
+    callback hierarchy-key-pressed(int);
+
+    // ========================================================================
+    // LAYOUT
+    // ========================================================================
+    width: root.show-sidebar ? root.sidebar-width : 0px;
+
+    Rectangle {
+        background: MaterialPalette.surface-container-low;
+
+        // Right border separator
+        Rectangle {
+            x: parent.width - 1px;
+            width: 1px;
+            background: MaterialPalette.outline-variant;
+        }
+
+        VerticalLayout {
+            padding: MaterialStyleMetrics.padding-16;
+            spacing: MaterialStyleMetrics.spacing-16;
+
+            // ================================================================
+            // TOOL SELECTION SECTION
+            // ================================================================
+            MaterialText {
+                text: "Tools";
+                style: MaterialTypography.title-small;
+                color: MaterialPalette.on-surface-variant;
+            }
+
+            SegmentedButton {
+                items: [
+                    { text: "Box" },
+                    { text: "Point" },
+                    { text: "Poly" }
+                ];
+
+                // Map current tool string to button index
+                current-index:
+                    root.current-tool == "BBox (B)" ? 0 :
+                    (root.current-tool == "Point (C)" ? 1 :
+                    (root.current-tool == "Polygon (Hold S)" ? 2 : -1));
+
+                // Handle tool selection
+                index-changed(idx) => {
+                    if (idx == 0) { root.tool-selected("bbox"); }
+                    else if (idx == 1) { root.tool-selected("point"); }
+                    else if (idx == 2) { root.tool-selected("polygon"); }
+                }
+            }
+
+            // ================================================================
+            // CLASSES/HIERARCHY SECTION HEADER
+            // ================================================================
+            MaterialText {
+                text: root.hierarchy-mode ? "Hierarchy" : "Classes";
+                style: MaterialTypography.title-small;
+                color: MaterialPalette.on-surface-variant;
+            }
+
+            // ================================================================
+            // HIERARCHY BREADCRUMB (shown when in hierarchy mode)
+            // ================================================================
+            if root.hierarchy-mode && root.hierarchy-breadcrumb != "" : Rectangle {
+                height: 32px;
+                background: MaterialPalette.secondary-container;
+                border-radius: 4px;
+
+                HorizontalLayout {
+                    padding: 8px;
+                    MaterialText {
+                        text: root.hierarchy-breadcrumb;
+                        color: MaterialPalette.on-secondary-container;
+                        style: MaterialTypography.label-medium;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // ================================================================
+            // HIERARCHY OPTIONS LIST (shown in hierarchy mode)
+            // ================================================================
+            if root.hierarchy-mode : ListView {
+                for item in root.hierarchy-options : Rectangle {
+                    height: 40px;
+                    background: transparent;
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        padding: 4px;
+
+                        // Key badge (shows the keyboard shortcut number)
+                        Rectangle {
+                            width: 24px;
+                            height: 24px;
+                            border-radius: 12px;
+                            background: MaterialPalette.secondary-container;
+                            y: (parent.height - self.height) / 2;
+
+                            MaterialText {
+                                text: item.key;
+                                style: MaterialTypography.label-small;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                color: MaterialPalette.on-secondary-container;
+                            }
+                        }
+
+                        // Option label
+                        MaterialText {
+                            text: item.label;
+                            style: MaterialTypography.body-medium;
+                            vertical-alignment: center;
+                            color: MaterialPalette.on-surface;
+                            horizontal-stretch: 1;
+                        }
+
+                        // Arrow indicator (shown for non-leaf items)
+                        if !item.is-leaf : MaterialText {
+                            text: "▶";
+                            style: MaterialTypography.label-small;
+                            color: MaterialPalette.outline;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Click handler
+                    TouchArea {
+                        clicked => {
+                            root.hierarchy-key-pressed(item.key);
+                        }
+                    }
+                }
+            }
+
+            // ================================================================
+            // CLASS LIST (shown in normal mode)
+            // ================================================================
+            if !root.hierarchy-mode : ListView {
+                for item in root.classes : Rectangle {
+                    height: 36px;
+                    background: transparent;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        padding: 4px;
+
+                        // Color indicator bar
+                        Rectangle {
+                            width: 4px;
+                            height: 24px;
+                            y: (parent.height - self.height) / 2;
+                            background: item.color;
+                            border-radius: 2px;
+                        }
+
+                        // Keyboard shortcut badge
+                        Rectangle {
+                            width: 24px;
+                            height: 24px;
+                            border-radius: 12px;
+                            background: MaterialPalette.surface-container-highest;
+                            y: (parent.height - self.height) / 2;
+
+                            MaterialText {
+                                text: item.shortcut;
+                                style: MaterialTypography.label-small;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                color: MaterialPalette.on-surface-variant;
+                            }
+                        }
+
+                        // Class name
+                        MaterialText {
+                            text: item.name;
+                            style: MaterialTypography.body-medium;
+                            vertical-alignment: center;
+                            color: root.current-class == item.id ? MaterialPalette.primary : MaterialPalette.on-surface;
+                        }
+                    }
+
+                    // Click handler
+                    TouchArea {
+                        clicked => {
+                            root.class-selected(item.id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
