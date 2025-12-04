@@ -1,0 +1,184 @@
+# COCO Dataset Hierarchical Class Map (5-Key System)
+# Level 1: Top Categories (1-5)
+# Level 2: Sub Categories (1-5)
+# Level 3: Leaf Classes (1-5)
+
+# 1. Living & Organisms
+- key: 1
+  label: "Living"
+  children:
+    - key: 1
+      label: "People & Acc"
+      children:
+        - { key: 1, id: 1, name: "person", label: "Person" }
+        - { key: 2, id: 25, name: "backpack", label: "Backpack" }
+        - { key: 3, id: 26, name: "umbrella", label: "Umbrella" }
+        - { key: 4, id: 27, name: "handbag", label: "Handbag" }
+        - { key: 5, id: 28, name: "tie", label: "Tie" } # Also suitcase?
+    - key: 2
+      label: "Pets & Farm"
+      children:
+        - { key: 1, id: 17, name: "cat", label: "Cat" }
+        - { key: 2, id: 18, name: "dog", label: "Dog" }
+        - { key: 3, id: 19, name: "horse", label: "Horse" }
+        - { key: 4, id: 20, name: "sheep", label: "Sheep" }
+        - { key: 5, id: 21, name: "cow", label: "Cow" }
+    - key: 3
+      label: "Wild Animals"
+      children:
+        - { key: 1, id: 22, name: "elephant", label: "Elephant" }
+        - { key: 2, id: 23, name: "bear", label: "Bear" }
+        - { key: 3, id: 24, name: "zebra", label: "Zebra" }
+        - { key: 4, id: 25, name: "giraffe", label: "Giraffe" }
+        - { key: 5, id: 16, name: "bird", label: "Bird" }
+    - key: 4
+      label: "Food (Raw)"
+      children:
+        - { key: 1, id: 52, name: "banana", label: "Banana" }
+        - { key: 2, id: 53, name: "apple", label: "Apple" }
+        - { key: 3, id: 55, name: "orange", label: "Orange" }
+        - { key: 4, id: 56, name: "broccoli", label: "Broccoli" }
+        - { key: 5, id: 57, name: "carrot", label: "Carrot" }
+    - key: 5
+      label: "Food (Prep)"
+      children:
+        - { key: 1, id: 54, name: "sandwich", label: "Sandwich" }
+        - { key: 2, id: 58, name: "hot dog", label: "Hot Dog" }
+        - { key: 3, id: 59, name: "pizza", label: "Pizza" }
+        - { key: 4, id: 60, name: "donut", label: "Donut" }
+        - { key: 5, id: 61, name: "cake", label: "Cake" }
+
+# 2. Transport & Traffic
+- key: 2
+  label: "Transport"
+  children:
+    - key: 1
+      label: "Personal"
+      children:
+        - { key: 1, id: 2, name: "bicycle", label: "Bicycle" }
+        - { key: 2, id: 3, name: "car", label: "Car" }
+        - { key: 3, id: 4, name: "motorcycle", label: "Motorcycle" }
+    - key: 2
+      label: "Public/Hvy"
+      children:
+        - { key: 1, id: 6, name: "bus", label: "Bus" }
+        - { key: 2, id: 7, name: "train", label: "Train" }
+        - { key: 3, id: 8, name: "truck", label: "Truck" }
+    - key: 3
+      label: "Air & Sea"
+      children:
+        - { key: 1, id: 5, name: "airplane", label: "Airplane" }
+        - { key: 2, id: 9, name: "boat", label: "Boat" }
+    - key: 4
+      label: "Traffic Ctrl"
+      children:
+        - { key: 1, id: 10, name: "traffic light", label: "Traffic Light" }
+        - { key: 2, id: 11, name: "fire hydrant", label: "Fire Hydrant" }
+        - { key: 3, id: 13, name: "stop sign", label: "Stop Sign" }
+        - { key: 4, id: 14, name: "parking meter", label: "Parking Meter" }
+    - key: 5
+      label: "Roadside"
+      children:
+        - { key: 1, id: 15, name: "bench", label: "Bench" }
+
+# 3. Indoor & Furniture
+- key: 3
+  label: "Indoor"
+  children:
+    - key: 1
+      label: "Seating"
+      children:
+        - { key: 1, id: 62, name: "chair", label: "Chair" }
+        - { key: 2, id: 63, name: "couch", label: "Couch" }
+        - { key: 3, id: 65, name: "bed", label: "Bed" }
+        - { key: 4, id: 70, name: "toilet", label: "Toilet" }
+    - key: 2
+      label: "Tables/Decor"
+      children:
+        - { key: 1, id: 67, name: "dining table", label: "Dining Table" }
+        - { key: 2, id: 64, name: "potted plant", label: "Potted Plant" }
+        - { key: 3, id: 85, name: "clock", label: "Clock" }
+        - { key: 4, id: 86, name: "vase", label: "Vase" }
+    - key: 3
+      label: "Electronics"
+      children:
+        - { key: 1, id: 72, name: "tv", label: "TV" }
+        - { key: 2, id: 73, name: "laptop", label: "Laptop" }
+        - { key: 3, id: 74, name: "mouse", label: "Mouse" }
+        - { key: 4, id: 75, name: "remote", label: "Remote" }
+        - { key: 5, id: 76, name: "keyboard", label: "Keyboard" } # Also cell phone
+    - key: 4
+      label: "Appliances"
+      children:
+        - { key: 1, id: 78, name: "microwave", label: "Microwave" }
+        - { key: 2, id: 79, name: "oven", label: "Oven" }
+        - { key: 3, id: 80, name: "toaster", label: "Toaster" }
+        - { key: 4, id: 81, name: "sink", label: "Sink" }
+        - { key: 5, id: 82, name: "refrigerator", label: "Refrigerator" }
+    - key: 5
+      label: "Misc"
+      children:
+        - { key: 1, id: 84, name: "book", label: "Book" }
+        - { key: 2, id: 77, name: "cell phone", label: "Cell Phone" }
+
+# 4. Sports & Outdoor
+- key: 4
+  label: "Sports"
+  children:
+    - key: 1
+      label: "Snow"
+      children:
+        - { key: 1, id: 35, name: "skis", label: "Skis" }
+        - { key: 2, id: 36, name: "snowboard", label: "Snowboard" }
+    - key: 2
+      label: "Water/Wind"
+      children:
+        - { key: 1, id: 37, name: "sports ball", label: "Sports Ball" }
+        - { key: 2, id: 38, name: "kite", label: "Kite" }
+        - { key: 3, id: 42, name: "surfboard", label: "Surfboard" }
+    - key: 3
+      label: "Bat/Racket"
+      children:
+        - { key: 1, id: 39, name: "baseball bat", label: "Baseball Bat" }
+        - { key: 2, id: 40, name: "baseball glove", label: "Baseball Glove" }
+        - { key: 3, id: 43, name: "tennis racket", label: "Tennis Racket" }
+    - key: 4
+      label: "Leisure"
+      children:
+        - { key: 1, id: 34, name: "frisbee", label: "Frisbee" }
+        - { key: 2, id: 41, name: "skateboard", label: "Skateboard" }
+    - key: 5
+      label: "Luggage"
+      children:
+        - { key: 1, id: 33, name: "suitcase", label: "Suitcase" }
+
+# 5. Kitchen & Personal
+- key: 5
+  label: "Kitchen/Misc"
+  children:
+    - key: 1
+      label: "Drinkware"
+      children:
+        - { key: 1, id: 44, name: "bottle", label: "Bottle" }
+        - { key: 2, id: 46, name: "wine glass", label: "Wine Glass" }
+        - { key: 3, id: 47, name: "cup", label: "Cup" }
+    - key: 2
+      label: "Dishes"
+      children:
+        - { key: 1, id: 51, name: "bowl", label: "Bowl" }
+    - key: 3
+      label: "Cutlery"
+      children:
+        - { key: 1, id: 48, name: "fork", label: "Fork" }
+        - { key: 2, id: 49, name: "knife", label: "Knife" }
+        - { key: 3, id: 50, name: "spoon", label: "Spoon" }
+    - key: 4
+      label: "Personal"
+      children:
+        - { key: 1, id: 87, name: "scissors", label: "Scissors" }
+        - { key: 2, id: 88, name: "teddy bear", label: "Teddy Bear" }
+    - key: 5
+      label: "Hygiene"
+      children:
+        - { key: 1, id: 89, name: "hair drier", label: "Hair Drier" }
+        - { key: 2, id: 90, name: "toothbrush", label: "Toothbrush" }

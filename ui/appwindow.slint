@@ -1,7 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { MenuBar } from "components/menubar.slint";
-import { Sidebar, ClassItem } from "components/sidebar.slint";
+import { Sidebar, ClassItem, HierarchyOption } from "components/sidebar.slint";
 import { SettingsDialog } from "components/dialogs/settings_dialog.slint";
 
 struct PolygonVertex {
@@ -86,6 +86,13 @@ export component AppWindow inherits Window {
     in property <[ClassItem]> class-items;
     callback get-class-name(int) -> string;
 
+    // Hierarchy mode
+    in property <bool> hierarchy-mode: false;
+    in property <string> hierarchy-breadcrumb: "";
+    in property <string> hierarchy-prompt: "Select category (1-5)";
+    in property <[HierarchyOption]> hierarchy-options: [];
+    callback hierarchy-navigate(int);
+
     // Phase 2: Sidebar
     in-out property <bool> sidebar-visible: true;
     in-out property <length> sidebar-width: 250px;
@@ -125,6 +132,10 @@ export component AppWindow inherits Window {
     callback add-polygon-vertex(float, float);  // Add vertex to current polygon
     callback finish-polygon();  // Complete and create polygon annotation
     callback cancel-polygon();  // Cancel polygon creation
+
+    // Undo/Redo callbacks
+    callback undo-action();
+    callback redo-action();
 
     // Phase 3: Resize callbacks
     callback start-resize(int, string);  // (annotation index, handle type: "corner-tl", "corner-tr", "corner-bl", "corner-br", "edge-t", "edge-r", "edge-b", "edge-l")
@@ -182,8 +193,15 @@ export component AppWindow inherits Window {
                 current-tool: root.current-tool;
                 show-sidebar: root.sidebar-visible;
                 sidebar-width: root.sidebar-width;
+                hierarchy-mode: root.hierarchy-mode;
+                hierarchy-breadcrumb: root.hierarchy-breadcrumb;
+                hierarchy-prompt: root.hierarchy-prompt;
+                hierarchy-options: root.hierarchy-options;
                 class-selected(id) => {
                     root.current-class = id;
+                }
+                hierarchy-key-pressed(key) => {
+                    root.hierarchy-navigate(key);
                 }
             }
 
@@ -1315,6 +1333,18 @@ export component AppWindow inherits Window {
             } else if (event.text == "f" || event.text == "F") {
                 root.toggle-frame-completion();
                 accept
+            } else if ((event.text == "z" || event.text == "Z") && (event.modifiers.control || event.modifiers.meta) && event.modifiers.shift) {
+                // Ctrl+Shift+Z: Redo
+                root.redo-action();
+                accept
+            } else if ((event.text == "z" || event.text == "Z") && (event.modifiers.control || event.modifiers.meta)) {
+                // Ctrl+Z: Undo
+                root.undo-action();
+                accept
+            } else if ((event.text == "y" || event.text == "Y") && (event.modifiers.control || event.modifiers.meta)) {
+                // Ctrl+Y: Redo (alternative)
+                root.redo-action();
+                accept
             } else if ((event.text == "s" || event.text == "S") && (event.modifiers.control || event.modifiers.meta)) {
                 root.save-dataset();
                 accept
@@ -1344,29 +1374,49 @@ export component AppWindow inherits Window {
                 }
                 accept
             } else if (event.text == "1") {
-                root.current-class = 1;
-                root.classify-selected(root.current-class);
-                root.digit-key-held = true;
+                if (root.hierarchy-mode) {
+                    root.hierarchy-navigate(1);
+                } else {
+                    root.current-class = 1;
+                    root.classify-selected(root.current-class);
+                    root.digit-key-held = true;
+                }
                 accept
             } else if (event.text == "2") {
-                root.current-class = 2;
-                root.classify-selected(root.current-class);
-                root.digit-key-held = true;
+                if (root.hierarchy-mode) {
+                    root.hierarchy-navigate(2);
+                } else {
+                    root.current-class = 2;
+                    root.classify-selected(root.current-class);
+                    root.digit-key-held = true;
+                }
                 accept
             } else if (event.text == "3") {
-                root.current-class = 3;
-                root.classify-selected(root.current-class);
-                root.digit-key-held = true;
+                if (root.hierarchy-mode) {
+                    root.hierarchy-navigate(3);
+                } else {
+                    root.current-class = 3;
+                    root.classify-selected(root.current-class);
+                    root.digit-key-held = true;
+                }
                 accept
             } else if (event.text == "4") {
-                root.current-class = 4;
-                root.classify-selected(root.current-class);
-                root.digit-key-held = true;
+                if (root.hierarchy-mode) {
+                    root.hierarchy-navigate(4);
+                } else {
+                    root.current-class = 4;
+                    root.classify-selected(root.current-class);
+                    root.digit-key-held = true;
+                }
                 accept
             } else if (event.text == "5") {
-                root.current-class = 5;
-                root.classify-selected(root.current-class);
-                root.digit-key-held = true;
+                if (root.hierarchy-mode) {
+                    root.hierarchy-navigate(5);
+                } else {
+                    root.current-class = 5;
+                    root.classify-selected(root.current-class);
+                    root.digit-key-held = true;
+                }
                 accept
             } else if (event.text == "\n") {
                 // Enter key - finish polygon
@@ -1393,8 +1443,10 @@ export component AppWindow inherits Window {
                 }
                 reject
             } else if (event.text == "\u{001b}") {
-                // Escape key - cancel polygon or exit polygon mode
-                if (root.polygon-mode-active) {
+                // Escape key - navigate up in hierarchy, cancel polygon, or exit polygon mode
+                if (root.hierarchy-mode) {
+                    root.hierarchy-navigate(0);  // 0 means navigate up
+                } else if (root.polygon-mode-active) {
                     root.cancel-polygon();
                 }
                 accept

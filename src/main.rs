@@ -4,6 +4,7 @@ mod config;
 mod classes;
 mod export;
 mod auto_resize;
+mod hierarchy;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -218,6 +219,70 @@ fn snapshot_annotations(model: &slint::VecModel<Annotation>) -> Vec<Annotation> 
 
 fn next_id_from_annotations(anns: &[Annotation], default_start: i32) -> i32 {
     anns.iter().map(|a| a.id).max().map(|m| m + 1).unwrap_or(default_start)
+}
+
+/// Undo/Redo history manager
+#[derive(Debug, Clone)]
+struct UndoHistory {
+    undo_stack: Vec<Vec<Annotation>>,
+    redo_stack: Vec<Vec<Annotation>>,
+    max_history: usize,
+}
+
+impl UndoHistory {
+    fn new(max_history: usize) -> Self {
+        Self {
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            max_history,
+        }
+    }
+
+    /// Push current state onto undo stack (call BEFORE making a change)
+    fn push(&mut self, snapshot: Vec<Annotation>) {
+        self.undo_stack.push(snapshot);
+
+        // Limit history size
+        if self.undo_stack.len() > self.max_history {
+            self.undo_stack.remove(0);
+        }
+
+        // Clear redo stack when new action is performed
+        self.redo_stack.clear();
+    }
+
+    /// Undo: pop from undo stack, push current to redo stack, return previous state
+    fn undo(&mut self, current: Vec<Annotation>) -> Option<Vec<Annotation>> {
+        if let Some(previous) = self.undo_stack.pop() {
+            self.redo_stack.push(current);
+            Some(previous)
+        } else {
+            None
+        }
+    }
+
+    /// Redo: pop from redo stack, push current to undo stack, return next state
+    fn redo(&mut self, current: Vec<Annotation>) -> Option<Vec<Annotation>> {
+        if let Some(next) = self.redo_stack.pop() {
+            self.undo_stack.push(current);
+            Some(next)
+        } else {
+            None
+        }
+    }
+
+    fn can_undo(&self) -> bool {
+        !self.undo_stack.is_empty()
+    }
+
+    fn can_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
+    }
+
+    fn clear(&mut self) {
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+    }
 }
 
 fn get_view_state(ui: &AppWindow) -> ViewState {
@@ -490,7 +555,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // Theme will be set via callback later if needed
     // For now, it defaults to dark theme in the Slint code
 
-    // Populate class items for the sidebar
+    // Populate class items for the sidebar (flat mode)
     let class_items: Vec<ClassItem> = classes
         .borrow()
         .classes
@@ -508,6 +573,33 @@ fn main() -> Result<(), slint::PlatformError> {
         })
         .collect();
     ui.set_class_items(slint::ModelRc::new(slint::VecModel::from(class_items)));
+
+    // Initialize hierarchy navigation if hierarchy exists
+    let hierarchy_navigator = Rc::new(RefCell::new(
+        hierarchy::HierarchyNavigator::new(&classes.borrow())
+    ));
+
+    let is_hierarchical = hierarchy_navigator.borrow().is_hierarchical();
+    ui.set_hierarchy_mode(is_hierarchical);
+
+    if is_hierarchical {
+        println!("✓ Hierarchical class selection enabled ({} levels)",
+                 hierarchy_navigator.borrow().max_depth());
+
+        // Set initial hierarchy options
+        let navigator = hierarchy_navigator.borrow();
+        let options: Vec<HierarchyOption> = navigator.get_current_level_nodes()
+            .iter()
+            .map(|node| HierarchyOption {
+                key: node.key as i32,
+                label: node.label.clone().into(),
+                is_leaf: node.id.is_some(),
+            })
+            .collect();
+        ui.set_hierarchy_options(slint::ModelRc::new(slint::VecModel::from(options)));
+        ui.set_hierarchy_prompt(navigator.get_prompt().into());
+        ui.set_hierarchy_breadcrumb("".into());
+    }
 
     // Debug: Terminal commands for adjusting sidebar
     {
@@ -607,8 +699,72 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let draw_state = Rc::new(RefCell::new(DrawState::new()));
     let resize_state = Rc::new(RefCell::new(ResizeState::new()));
+    let undo_history = Rc::new(RefCell::new(UndoHistory::new(50))); // Max 50 undo steps
     let annotations = std::rc::Rc::new(slint::VecModel::from(Vec::<Annotation>::new()));
     ui.set_annotations(annotations.clone().into());
+
+    // Add callback for hierarchy navigation
+    {
+        let navigator_ref = hierarchy_navigator.clone();
+        let ui_handle = ui.as_weak();
+        let annotations_ref = annotations.clone();
+
+        ui.on_hierarchy_navigate(move |key| {
+            let mut navigator = navigator_ref.borrow_mut();
+            let ui = match ui_handle.upgrade() {
+                Some(ui) => ui,
+                None => return,
+            };
+
+            if key == 0 {
+                // Navigate up (ESC key)
+                navigator.navigate_up();
+            } else if (1..=5).contains(&key) {
+                // Navigate down (1-5 keys)
+                if let Some(class_id) = navigator.navigate_down(key as u8) {
+                    // Reached a leaf node - assign class
+                    ui.set_current_class(class_id);
+
+                    // Classify any selected annotations
+                    let count = annotations_ref.row_count();
+                    let mut changed = false;
+                    for i in 0..count {
+                        if let Some(mut ann) = annotations_ref.row_data(i) {
+                            if ann.selected {
+                                ann.class = class_id;
+                                annotations_ref.set_row_data(i, ann);
+                                changed = true;
+                            }
+                        }
+                    }
+
+                    if changed {
+                        ui.set_status_text(format!("Assigned class {} to selected annotations", class_id).into());
+                    } else {
+                        ui.set_status_text(format!("Class {} selected", class_id).into());
+                    }
+
+                    // Navigator has auto-reset, so return to root
+                }
+            }
+
+            // Update UI with current hierarchy state
+            let options: Vec<HierarchyOption> = navigator.get_current_level_nodes()
+                .iter()
+                .map(|node| HierarchyOption {
+                    key: node.key as i32,
+                    label: node.label.clone().into(),
+                    is_leaf: node.id.is_some(),
+                })
+                .collect();
+
+            ui.set_hierarchy_options(slint::ModelRc::new(slint::VecModel::from(options)));
+            ui.set_hierarchy_prompt(navigator.get_prompt().into());
+
+            let breadcrumb = navigator.get_breadcrumb().join(" > ");
+            ui.set_hierarchy_breadcrumb(breadcrumb.into());
+        });
+    }
 
     // Tracks the original pixel size of the currently displayed image.
     let image_dimensions = Rc::new(RefCell::new((1.0f32, 1.0f32)));
@@ -918,8 +1074,12 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui_handle = ui.as_weak();
     let annotations_handle = annotations.clone();
     let draw_state_handle = draw_state.clone();
+    let undo_history_ref = undo_history.clone();
     // Finalize a bbox or point when the mouse button is released.
     ui.on_finish_drawing(move |x, y| {
+        // Push current state to undo history before creating new annotation
+        undo_history_ref.borrow_mut().push(snapshot_annotations(&annotations_handle));
+
         let mut state = draw_state_handle.borrow_mut();
 
         if let Some(ui) = ui_handle.upgrade() {
@@ -985,8 +1145,12 @@ fn main() -> Result<(), slint::PlatformError> {
     // Delete annotation callback (for Q+click)
     let ui_handle = ui.as_weak();
     let annotations_handle = annotations.clone();
+    let undo_history_ref = undo_history.clone();
     // Q + click: remove the topmost annotation under the cursor.
     ui.on_delete_annotation_at(move |x, y| {
+        // Push current state to undo history before deletion
+        undo_history_ref.borrow_mut().push(snapshot_annotations(&annotations_handle));
+
         let count = annotations_handle.row_count();
         for i in (0..count).rev() {
             // Reverse to get topmost first
@@ -1022,7 +1186,11 @@ fn main() -> Result<(), slint::PlatformError> {
     // Delete annotation by index (for double-click)
     let ui_handle = ui.as_weak();
     let annotations_handle = annotations.clone();
+    let undo_history_ref = undo_history.clone();
     ui.on_delete_annotation(move |index| {
+        // Push current state to undo history before deletion
+        undo_history_ref.borrow_mut().push(snapshot_annotations(&annotations_handle));
+
         if let Some(mut ann) = annotations_handle.row_data(index as usize) {
             ann.state = "Rejected".into();
             ann.selected = false;
@@ -1036,7 +1204,11 @@ fn main() -> Result<(), slint::PlatformError> {
     // Classify annotation (for digit+click)
     let ui_handle = ui.as_weak();
     let annotations_handle = annotations.clone();
+    let undo_history_ref = undo_history.clone();
     ui.on_classify_at(move |x, y, new_class| {
+        // Push current state to undo history before classification
+        undo_history_ref.borrow_mut().push(snapshot_annotations(&annotations_handle));
+
         // Find annotation at this position and update its class
         let count = annotations_handle.row_count();
         for i in (0..count).rev() {
@@ -1076,7 +1248,11 @@ fn main() -> Result<(), slint::PlatformError> {
     // Classify currently selected annotation(s) when a digit key is pressed
     let ui_handle = ui.as_weak();
     let annotations_handle = annotations.clone();
+    let undo_history_ref = undo_history.clone();
     ui.on_classify_selected(move |new_class| {
+        // Push current state to undo history before classification
+        undo_history_ref.borrow_mut().push(snapshot_annotations(&annotations_handle));
+
         let mut updated = false;
         let count = annotations_handle.row_count();
         for i in 0..count {
@@ -1100,6 +1276,44 @@ fn main() -> Result<(), slint::PlatformError> {
             }
         }
     });
+
+    // Undo action (Ctrl+Z)
+    {
+        let undo_history_ref = undo_history.clone();
+        let annotations_ref = annotations.clone();
+        let ui_handle = ui.as_weak();
+
+        ui.on_undo_action(move || {
+            let current = snapshot_annotations(&annotations_ref);
+            if let Some(previous) = undo_history_ref.borrow_mut().undo(current) {
+                replace_annotations(&annotations_ref, previous);
+                if let Some(ui) = ui_handle.upgrade() {
+                    ui.set_status_text("Undo".into());
+                }
+            } else if let Some(ui) = ui_handle.upgrade() {
+                ui.set_status_text("Nothing to undo".into());
+            }
+        });
+    }
+
+    // Redo action (Ctrl+Shift+Z or Ctrl+Y)
+    {
+        let undo_history_ref = undo_history.clone();
+        let annotations_ref = annotations.clone();
+        let ui_handle = ui.as_weak();
+
+        ui.on_redo_action(move || {
+            let current = snapshot_annotations(&annotations_ref);
+            if let Some(next) = undo_history_ref.borrow_mut().redo(current) {
+                replace_annotations(&annotations_ref, next);
+                if let Some(ui) = ui_handle.upgrade() {
+                    ui.set_status_text("Redo".into());
+                }
+            } else if let Some(ui) = ui_handle.upgrade() {
+                ui.set_status_text("Nothing to redo".into());
+            }
+        });
+    }
 
     // Smart auto-resize using Sobel edge detection
     let annotations_handle = annotations.clone();
