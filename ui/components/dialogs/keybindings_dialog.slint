@@ -1,0 +1,157 @@
+// ============================================================================
+// KEYBINDINGS DIALOG
+// ============================================================================
+// Reference list of shortcuts. Secondary-toned square design.
+
+import { MaterialPalette } from "../../material/ui/styling/material_palette.slint";
+import { MaterialTypography } from "../../material/ui/styling/material_typography.slint";
+import { MaterialText } from "../../material/ui/components/material_text.slint";
+import { TextButton } from "../../material/ui/components/text_button.slint";
+import { ScrollView } from "std-widgets.slint";
+
+component KeybindingRow inherits Rectangle {
+    in property <string> action;
+    in property <string> current-key;
+    in property <string> description;
+
+    height: 48px;
+    background: transparent;
+
+    HorizontalLayout {
+        padding: 8px;
+        spacing: 12px;
+
+        VerticalLayout {
+            width: 200px;
+            MaterialText {
+                text: root.action;
+                style: MaterialTypography.body-medium;
+                color: MaterialPalette.on_surface;
+            }
+            MaterialText {
+                text: root.description;
+                style: MaterialTypography.body-small;
+                color: MaterialPalette.on_surface_variant;
+            }
+        }
+
+        Rectangle { horizontal-stretch: 1; }
+
+        Rectangle {
+            width: 140px;
+            height: 32px;
+            background: MaterialPalette.surface_container_high;
+            border-radius: 6px;
+
+            MaterialText {
+                text: root.current-key;
+                style: MaterialTypography.label-large;
+                color: MaterialPalette.on_surface;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+export component KeybindingsDialog {
+    in-out property <bool> show-dialog: false;
+    callback close();
+
+    if root.show-dialog: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: MaterialPalette.scrim.with-alpha(0.7);
+        TouchArea { clicked => { } }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 640px;
+            height: 500px;
+            background: MaterialPalette.secondary_container;
+            border-radius: 8px;
+            border-color: MaterialPalette.secondary;
+            border-width: 1px;
+
+            VerticalLayout {
+                Rectangle {
+                    height: 52px;
+                    background: MaterialPalette.secondary;
+
+                    HorizontalLayout {
+                        padding-left: 20px;
+                        padding-right: 12px;
+
+                        MaterialText {
+                            text: "Keybindings";
+                            style: MaterialTypography.title-medium;
+                            color: MaterialPalette.on_secondary;
+                            vertical-alignment: center;
+                        }
+
+                        Rectangle { horizontal-stretch: 1; }
+
+                        TextButton { text: "Close"; clicked => { root.close(); } }
+                    }
+                }
+
+                Rectangle {
+                    vertical-stretch: 1;
+                    background: MaterialPalette.surface_container;
+
+                    ScrollView {
+                        VerticalLayout {
+                            padding: 20px;
+                            spacing: 12px;
+
+                            MaterialText { text: "Navigation"; style: MaterialTypography.title-small; color: MaterialPalette.secondary; }
+                            KeybindingRow { action: "Next Image"; current-key: "Space / →"; description: "Move to next image"; }
+                            KeybindingRow { action: "Previous Image"; current-key: "Shift+Space / ←"; description: "Move to previous image"; }
+                            KeybindingRow { action: "Reset View"; current-key: "H / Ctrl+0"; description: "Reset zoom and pan"; }
+
+                            MaterialText { text: "Drawing Tools"; style: MaterialTypography.title-small; color: MaterialPalette.secondary; }
+                            KeybindingRow { action: "BBox Tool"; current-key: "B"; description: "Draw bounding boxes"; }
+                            KeybindingRow { action: "Point Tool"; current-key: "C"; description: "Place center points"; }
+                            KeybindingRow { action: "Polygon Tool"; current-key: "S (hold)"; description: "Draw polygons"; }
+                            KeybindingRow { action: "Delete Mode"; current-key: "Q (hold)"; description: "Delete annotations"; }
+                            KeybindingRow { action: "Auto-Resize"; current-key: "A (hold)"; description: "Auto-resize with edge detection"; }
+
+                            MaterialText { text: "Class Selection"; style: MaterialTypography.title-small; color: MaterialPalette.secondary; }
+                            KeybindingRow { action: "Class 1"; current-key: "1"; description: "Select class 1"; }
+                            KeybindingRow { action: "Class 2"; current-key: "2"; description: "Select class 2"; }
+                            KeybindingRow { action: "Class 3"; current-key: "3"; description: "Select class 3"; }
+                            KeybindingRow { action: "Class 4"; current-key: "4"; description: "Select class 4"; }
+                            KeybindingRow { action: "Class 5"; current-key: "5"; description: "Select class 5"; }
+
+                            MaterialText { text: "Editing"; style: MaterialTypography.title-small; color: MaterialPalette.secondary; }
+                            KeybindingRow { action: "Undo"; current-key: "Ctrl+Z"; description: "Undo last action"; }
+                            KeybindingRow { action: "Redo"; current-key: "Ctrl+Shift+Z / Ctrl+Y"; description: "Redo last undone action"; }
+                            KeybindingRow { action: "Copy"; current-key: "Ctrl+C"; description: "Copy selected annotation"; }
+                            KeybindingRow { action: "Paste"; current-key: "Ctrl+V"; description: "Paste annotation"; }
+                            KeybindingRow { action: "Select All"; current-key: "Ctrl+A"; description: "Select all annotations"; }
+                            KeybindingRow { action: "Delete Selected"; current-key: "Del / Backspace"; description: "Delete selected annotations"; }
+
+                            MaterialText { text: "File Operations"; style: MaterialTypography.title-small; color: MaterialPalette.secondary; }
+                            KeybindingRow { action: "Save"; current-key: "Ctrl+S"; description: "Save dataset"; }
+                            KeybindingRow { action: "Frame Complete"; current-key: "F"; description: "Toggle frame completion"; }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 56px;
+                    background: MaterialPalette.surface_container_high;
+
+                    HorizontalLayout {
+                        padding: 12px;
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        Rectangle { horizontal-stretch: 1; }
+                        TextButton { text: "Close"; clicked => { root.close(); } }
+                    }
+                }
+            }
+        }
+    }
+}
