@@ -204,6 +204,7 @@ dependencies = [
  "directories",
  "image",
  "imageproc",
+ "rand 0.8.5",
  "rfd",
  "serde",
  "serde_json",

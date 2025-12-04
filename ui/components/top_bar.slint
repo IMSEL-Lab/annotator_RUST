@@ -224,9 +224,9 @@ export component TopBar {
                 spacing: 8px;
                 alignment: center;
 
-                // First button (double chevron left)
+                // First button (skip to start)
                 NavButton {
-                    icon: Icons.arrow-back;
+                    icon: Icons.skip-previous;
                     clicked => { root.first-image(); }
                 }
 
@@ -248,9 +248,9 @@ export component TopBar {
                     clicked => { root.next-image(); }
                 }
 
-                // Last button (double chevron right)
+                // Last button (skip to end)
                 NavButton {
-                    icon: Icons.arrow-right;
+                    icon: Icons.skip-next;
                     clicked => { root.last-image(); }
                 }
             }

@@ -1091,6 +1091,80 @@ fn main() -> Result<(), slint::PlatformError> {
         loader_prev(prev_idx);
     });
 
+    // First image navigation
+    let loader_first = loader.clone();
+    let ds_state_first = dataset_state.clone();
+    let annotations_for_save = annotations.clone();
+    let ui_for_save = ui.as_weak();
+    let image_dimensions_first = image_dimensions.clone();
+    ui.on_first_image(move || {
+        let first_idx = {
+            let mut ds_ref = ds_state_first.borrow_mut();
+            let Some(ds) = ds_ref.as_mut() else { return; };
+            if ds.entries.is_empty() {
+                return;
+            }
+
+            if let Some(ui) = ui_for_save.upgrade() {
+                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_first.borrow());
+            }
+
+            0
+        };
+
+        loader_first(first_idx);
+    });
+
+    // Last image navigation
+    let loader_last = loader.clone();
+    let ds_state_last = dataset_state.clone();
+    let annotations_for_save = annotations.clone();
+    let ui_for_save = ui.as_weak();
+    let image_dimensions_last = image_dimensions.clone();
+    ui.on_last_image(move || {
+        let last_idx = {
+            let mut ds_ref = ds_state_last.borrow_mut();
+            let Some(ds) = ds_ref.as_mut() else { return; };
+            if ds.entries.is_empty() {
+                return;
+            }
+
+            if let Some(ui) = ui_for_save.upgrade() {
+                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_last.borrow());
+            }
+
+            ds.entries.len() - 1
+        };
+
+        loader_last(last_idx);
+    });
+
+    // Randomize - jump to random image
+    let loader_random = loader.clone();
+    let ds_state_random = dataset_state.clone();
+    let annotations_for_save = annotations.clone();
+    let ui_for_save = ui.as_weak();
+    let image_dimensions_random = image_dimensions.clone();
+    ui.on_randomize(move || {
+        use rand::Rng;
+        let random_idx = {
+            let mut ds_ref = ds_state_random.borrow_mut();
+            let Some(ds) = ds_ref.as_mut() else { return; };
+            if ds.entries.is_empty() {
+                return;
+            }
+
+            if let Some(ui) = ui_for_save.upgrade() {
+                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_random.borrow());
+            }
+
+            let mut rng = rand::thread_rng();
+            rng.gen_range(0..ds.entries.len())
+        };
+
+        loader_random(random_idx);
+    });
+
     // Track global view changes (pan/zoom) to reuse across images
     {
         let ds_state = dataset_state.clone();
