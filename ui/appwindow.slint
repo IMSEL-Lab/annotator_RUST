@@ -37,6 +37,8 @@ export component AppWindow inherits Window {
     in property <[Annotation]> annotations;
     callback select-annotation(int);
     callback deselect-all();
+    callback select-all();
+    callback delete-selected();
     callback next-image();
     callback prev-image();
 
@@ -46,6 +48,8 @@ export component AppWindow inherits Window {
     in-out property <bool> q-key-held: false;
     in-out property <bool> digit-key-held: false;  // True when any digit 1-5 is held
     in-out property <bool> a-key-held: false;      // Track A key for auto-resize gesture
+    in-out property <bool> shift-key-held: false;  // Track Shift key for multi-select
+    in-out property <bool> ctrl-key-held: false;   // Track Ctrl/Cmd key for multi-select
     in-out property <string> current-image-name: "";
     in-out property <string> dataset-position: ""; // e.g., "1 / 3"
 
@@ -1319,6 +1323,10 @@ export component AppWindow inherits Window {
     // Keyboard handler (must be at root level)
     FocusScope {
         key-pressed(event) => {
+            // Track modifier keys for multi-select
+            root.shift-key-held = event.modifiers.shift;
+            root.ctrl-key-held = event.modifiers.control || event.modifiers.meta;
+
             if (event.text == " " && event.modifiers.shift) {
                 root.prev-image();
                 accept
@@ -1356,6 +1364,10 @@ export component AppWindow inherits Window {
             } else if ((event.text == "v" || event.text == "V") && (event.modifiers.control || event.modifiers.meta)) {
                 // Ctrl+V: Paste
                 root.paste-annotation();
+                accept
+            } else if ((event.text == "a" || event.text == "A") && (event.modifiers.control || event.modifiers.meta)) {
+                // Ctrl+A: Select all
+                root.select-all();
                 accept
             } else if ((event.text == "s" || event.text == "S") && (event.modifiers.control || event.modifiers.meta)) {
                 root.save-dataset();
@@ -1430,6 +1442,10 @@ export component AppWindow inherits Window {
                     root.digit-key-held = true;
                 }
                 accept
+            } else if (event.text == "Delete" || event.text == "Backspace") {
+                // Delete key - remove selected annotations
+                root.delete-selected();
+                accept
             } else if (event.text == "\n") {
                 // Enter key - finish polygon
                 if (root.polygon-mode-active) {
@@ -1467,6 +1483,10 @@ export component AppWindow inherits Window {
         }
 
         key-released(event) => {
+            // Track modifier keys for multi-select
+            root.shift-key-held = event.modifiers.shift;
+            root.ctrl-key-held = event.modifiers.control || event.modifiers.meta;
+
             if (event.text == "b" || event.text == "B" || event.text == "c" || event.text == "C") {
                 root.current-tool = "Neutral";
                 accept

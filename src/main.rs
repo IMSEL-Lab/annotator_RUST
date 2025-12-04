@@ -700,7 +700,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let draw_state = Rc::new(RefCell::new(DrawState::new()));
     let resize_state = Rc::new(RefCell::new(ResizeState::new()));
     let undo_history = Rc::new(RefCell::new(UndoHistory::new(50))); // Max 50 undo steps
-    let clipboard: Rc<RefCell<Option<Annotation>>> = Rc::new(RefCell::new(None)); // Annotation clipboard for copy/paste
+    let clipboard: Rc<RefCell<Vec<Annotation>>> = Rc::new(RefCell::new(Vec::new())); // Annotation clipboard for copy/paste (supports multiple)
     let annotations = std::rc::Rc::new(slint::VecModel::from(Vec::<Annotation>::new()));
     ui.set_annotations(annotations.clone().into());
 
@@ -921,13 +921,64 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // Selection Callbacks
     let annotations_handle = annotations.clone();
-    // Single-selection from the sidebar list; marks only the clicked row as selected.
+    let ui_handle = ui.as_weak();
+    // Multi-selection support: Ctrl toggles, Shift extends range, normal click selects only one
     ui.on_select_annotation(move |index| {
+        let ui = ui_handle.upgrade().unwrap();
+        let shift_held = ui.get_shift_key_held();
+        let ctrl_held = ui.get_ctrl_key_held();
         let count = annotations_handle.row_count();
-        for i in 0..count {
-            let mut data = annotations_handle.row_data(i).unwrap();
-            data.selected = i == index as usize;
-            annotations_handle.set_row_data(i, data);
+        let target_index = index as usize;
+
+        if ctrl_held {
+            // Ctrl+Click: Toggle selection of clicked annotation
+            if let Some(mut data) = annotations_handle.row_data(target_index) {
+                data.selected = !data.selected;
+                annotations_handle.set_row_data(target_index, data);
+            }
+        } else if shift_held {
+            // Shift+Click: Extend selection from last selected to this one
+            // Find the last selected annotation
+            let mut last_selected: Option<usize> = None;
+            for i in 0..count {
+                if let Some(data) = annotations_handle.row_data(i) {
+                    if data.selected {
+                        last_selected = Some(i);
+                    }
+                }
+            }
+
+            if let Some(start) = last_selected {
+                // Select range from start to target_index
+                let (range_start, range_end) = if start < target_index {
+                    (start, target_index)
+                } else {
+                    (target_index, start)
+                };
+
+                for i in range_start..=range_end {
+                    if let Some(mut data) = annotations_handle.row_data(i) {
+                        data.selected = true;
+                        annotations_handle.set_row_data(i, data);
+                    }
+                }
+            } else {
+                // No existing selection, just select this one
+                for i in 0..count {
+                    if let Some(mut data) = annotations_handle.row_data(i) {
+                        data.selected = i == target_index;
+                        annotations_handle.set_row_data(i, data);
+                    }
+                }
+            }
+        } else {
+            // Normal click: Select only this annotation
+            for i in 0..count {
+                if let Some(mut data) = annotations_handle.row_data(i) {
+                    data.selected = i == target_index;
+                    annotations_handle.set_row_data(i, data);
+                }
+            }
         }
     });
 
@@ -940,6 +991,46 @@ fn main() -> Result<(), slint::PlatformError> {
             if data.selected {
                 data.selected = false;
                 annotations_handle.set_row_data(i, data);
+            }
+        }
+    });
+
+    let annotations_handle = annotations.clone();
+    // Select all annotations (Ctrl+A)
+    ui.on_select_all(move || {
+        let count = annotations_handle.row_count();
+        for i in 0..count {
+            if let Some(mut data) = annotations_handle.row_data(i) {
+                data.selected = true;
+                annotations_handle.set_row_data(i, data);
+            }
+        }
+    });
+
+    let annotations_handle = annotations.clone();
+    let undo_history_ref = undo_history.clone();
+    let ui_handle = ui.as_weak();
+    // Delete all selected annotations (Delete key)
+    ui.on_delete_selected(move || {
+        // Push current state to undo history before deletion
+        undo_history_ref.borrow_mut().push(snapshot_annotations(&annotations_handle));
+
+        let mut deleted_count = 0;
+        let count = annotations_handle.row_count();
+        for i in 0..count {
+            if let Some(mut ann) = annotations_handle.row_data(i) {
+                if ann.selected {
+                    ann.state = "Rejected".into();
+                    ann.selected = false;
+                    annotations_handle.set_row_data(i, ann);
+                    deleted_count += 1;
+                }
+            }
+        }
+
+        if deleted_count > 0 {
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_status_text(format!("Deleted {} annotation(s)", deleted_count).into());
             }
         }
     });
@@ -1324,23 +1415,26 @@ fn main() -> Result<(), slint::PlatformError> {
 
         ui.on_copy_annotation(move || {
             let count = annotations_ref.row_count();
+            let mut copied_annotations = Vec::new();
 
-            // Find the selected annotation
+            // Find all selected annotations
             for i in 0..count {
                 if let Some(ann) = annotations_ref.row_data(i) {
                     if ann.selected {
-                        *clipboard_ref.borrow_mut() = Some(ann.clone());
-                        if let Some(ui) = ui_handle.upgrade() {
-                            ui.set_status_text(format!("Copied annotation {}", ann.id).into());
-                        }
-                        return;
+                        copied_annotations.push(ann.clone());
                     }
                 }
             }
 
-            // No selection found
-            if let Some(ui) = ui_handle.upgrade() {
-                ui.set_status_text("No annotation selected to copy".into());
+            if copied_annotations.is_empty() {
+                if let Some(ui) = ui_handle.upgrade() {
+                    ui.set_status_text("No annotation selected to copy".into());
+                }
+            } else {
+                *clipboard_ref.borrow_mut() = copied_annotations.clone();
+                if let Some(ui) = ui_handle.upgrade() {
+                    ui.set_status_text(format!("Copied {} annotation(s)", copied_annotations.len()).into());
+                }
             }
         });
     }
@@ -1353,39 +1447,43 @@ fn main() -> Result<(), slint::PlatformError> {
         let ui_handle = ui.as_weak();
 
         ui.on_paste_annotation(move || {
-            if let Some(copied_ann) = clipboard_ref.borrow().clone() {
-                // Push undo history before adding annotation
-                let snapshot = snapshot_annotations(&annotations_ref);
-                undo_history_ref.borrow_mut().push(snapshot);
+            let copied_anns = clipboard_ref.borrow().clone();
 
-                // Create new annotation with offset and new ID
-                let new_id = next_id_from_annotations(
-                    &(0..annotations_ref.row_count())
-                        .filter_map(|i| annotations_ref.row_data(i))
-                        .collect::<Vec<_>>(),
-                    1
-                );
-
-                // Offset by 5% in both directions
-                let offset_x = 0.05;
-                let offset_y = 0.05;
-
-                let mut new_ann = copied_ann.clone();
-                new_ann.id = new_id;
-                new_ann.x += offset_x;
-                new_ann.y += offset_y;
-                new_ann.selected = false; // Don't select the pasted annotation
-
-                annotations_ref.push(new_ann);
-
-                if let Some(ui) = ui_handle.upgrade() {
-                    ui.set_status_text(format!("Pasted annotation {}", new_id).into());
-                }
-            } else {
-                // Nothing in clipboard
+            if copied_anns.is_empty() {
                 if let Some(ui) = ui_handle.upgrade() {
                     ui.set_status_text("No annotation to paste".into());
                 }
+                return;
+            }
+
+            // Push undo history before adding annotations
+            let snapshot = snapshot_annotations(&annotations_ref);
+            undo_history_ref.borrow_mut().push(snapshot);
+
+            // Get starting ID for new annotations
+            let existing: Vec<_> = (0..annotations_ref.row_count())
+                .filter_map(|i| annotations_ref.row_data(i))
+                .collect();
+            let mut next_id = next_id_from_annotations(&existing, 1);
+
+            // Offset by 5% in both directions
+            let offset_x = 0.05;
+            let offset_y = 0.05;
+
+            // Paste all copied annotations
+            for copied_ann in copied_anns.iter() {
+                let mut new_ann = copied_ann.clone();
+                new_ann.id = next_id;
+                new_ann.x += offset_x;
+                new_ann.y += offset_y;
+                new_ann.selected = false; // Don't select the pasted annotations
+
+                annotations_ref.push(new_ann);
+                next_id += 1;
+            }
+
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_status_text(format!("Pasted {} annotation(s)", copied_anns.len()).into());
             }
         });
     }
