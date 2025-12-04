@@ -239,15 +239,28 @@ export component AppWindow inherits Window {
             file-export-voc => { root.export-voc(); }
             view-reset => { root.reset-view(); }
             view-toggle-sidebar => { root.sidebar-visible = !root.sidebar-visible; }
-            view-theme-dark => { 
-                root.theme-setting = "dark"; 
-                MaterialPalette.color-scheme = ColorScheme.dark; 
+            view-theme-dark => {
+                root.theme-setting = "dark";
+                MaterialPalette.color-scheme = ColorScheme.dark;
             }
-            view-theme-light => { 
-                root.theme-setting = "light"; 
-                MaterialPalette.color-scheme = ColorScheme.light; 
+            view-theme-light => {
+                root.theme-setting = "light";
+                MaterialPalette.color-scheme = ColorScheme.light;
             }
             tools-settings => { root.settings-dialog-visible = true; }
+
+            // Navigation callbacks
+            first-image => {
+                root.log-debug("First image");
+            }
+            prev-image => { root.prev-image(); }
+            randomize => {
+                root.log-debug("Randomize");
+            }
+            next-image => { root.next-image(); }
+            last-image => {
+                root.log-debug("Last image");
+            }
         }
 
         HorizontalLayout {
@@ -590,21 +603,6 @@ export component AppWindow inherits Window {
             status-text: root.status-text;
             current-tool: root.current-tool;
             current-class: root.current-class;
-
-            first-image => {
-                // TODO: Implement first image navigation
-                root.log-debug("First image");
-            }
-            prev-image => { root.prev-image(); }
-            randomize => {
-                // TODO: Implement randomize
-                root.log-debug("Randomize");
-            }
-            next-image => { root.next-image(); }
-            last-image => {
-                // TODO: Implement last image navigation
-                root.log-debug("Last image");
-            }
         }
     }
 

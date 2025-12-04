@@ -2,15 +2,16 @@
 // TOP BAR COMPONENT
 // ============================================================================
 // The main menu bar at the top of the application window
-// Menus on the left, title in the center, quick actions on the right
+// Menus on left, navigation in center, actions on right
 
 import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
 import { MaterialTypography } from "../material/ui/styling/material_typography.slint";
-import { TextButton } from "../material/ui/components/text_button.slint";
 import { PopupMenu } from "../material/ui/components/menu.slint";
 import { MenuItem } from "../material/ui/items/menu_item.slint";
 import { MaterialStyleMetrics } from "../material/ui/styling/material_style_metrics.slint";
 import { MaterialText } from "../material/ui/components/material_text.slint";
+import { Icon } from "../material/ui/components/icon.slint";
+import { Icons } from "../material/ui/icons/icons.slint";
 
 // ============================================================================
 // MENU BUTTON COMPONENT - Rectangular with small radius
@@ -24,13 +25,13 @@ component MenuButton inherits Rectangle {
     width: 60px;
     height: 32px;
     border-radius: 4px;
-    background: root.is-open ? MaterialPalette.surface-container-highest :
-                (touch.has-hover ? MaterialPalette.surface-container-high : transparent);
+    background: root.is-open ? MaterialPalette.primary-container :
+                (touch.has-hover ? MaterialPalette.surface-container-high : MaterialPalette.surface-container);
 
     MaterialText {
         text: root.text;
         style: MaterialTypography.label-large;
-        color: MaterialPalette.on-surface;
+        color: root.is-open ? MaterialPalette.on-primary-container : MaterialPalette.on-surface;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -44,6 +45,32 @@ component MenuButton inherits Rectangle {
                 root.hovered();
             }
         }
+    }
+}
+
+// ============================================================================
+// CIRCULAR NAVIGATION BUTTON
+// ============================================================================
+component NavButton inherits Rectangle {
+    in property <image> icon;
+    callback clicked();
+
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    background: touch.has-hover ? MaterialPalette.surface-container-highest : MaterialPalette.surface-container;
+
+    Icon {
+        source: root.icon;
+        colorize: MaterialPalette.on-surface;
+        width: 20px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+    }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+        mouse-cursor: pointer;
     }
 }
 
@@ -71,6 +98,15 @@ export component TopBar {
     callback tools-settings();
 
     // ========================================================================
+    // NAVIGATION CALLBACKS
+    // ========================================================================
+    callback first-image();
+    callback prev-image();
+    callback randomize();
+    callback next-image();
+    callback last-image();
+
+    // ========================================================================
     // MENU STATE - Track which menu is open
     // ========================================================================
     property <bool> file-menu-open: false;
@@ -81,7 +117,7 @@ export component TopBar {
     // ========================================================================
     // LAYOUT PROPERTIES
     // ========================================================================
-    min-height: 48px;
+    min-height: 40px;  // Thinner to fit 32px buttons
 
     // ========================================================================
     // MAIN CONTAINER
@@ -97,8 +133,10 @@ export component TopBar {
         }
 
         HorizontalLayout {
-            padding-left: MaterialStyleMetrics.padding-16;
-            padding-right: MaterialStyleMetrics.padding-16;
+            padding-left: MaterialStyleMetrics.padding-12;
+            padding-right: MaterialStyleMetrics.padding-12;
+            padding-top: 4px;
+            padding-bottom: 4px;
 
             // ================================================================
             // LEFT SECTION - MENU BUTTONS
@@ -178,29 +216,57 @@ export component TopBar {
             }
 
             // ================================================================
-            // CENTER SECTION - APP TITLE
+            // CENTER SECTION - NAVIGATION BUTTONS
             // ================================================================
             Rectangle { horizontal-stretch: 1; }  // Left spacer
 
-            MaterialText {
-                text: "RADICAL Image Annotator v0.1";
-                style: MaterialTypography.title-medium;
-                vertical-alignment: center;
-                horizontal-alignment: center;
-                color: MaterialPalette.on-surface;
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+
+                // First button (double chevron left)
+                NavButton {
+                    icon: Icons.arrow-back;
+                    clicked => { root.first-image(); }
+                }
+
+                // Previous button
+                NavButton {
+                    icon: Icons.chevron-backward;
+                    clicked => { root.prev-image(); }
+                }
+
+                // Randomize/Shuffle button
+                NavButton {
+                    icon: Icons.shuffle;
+                    clicked => { root.randomize(); }
+                }
+
+                // Next button
+                NavButton {
+                    icon: Icons.chevron-forward;
+                    clicked => { root.next-image(); }
+                }
+
+                // Last button (double chevron right)
+                NavButton {
+                    icon: Icons.arrow-right;
+                    clicked => { root.last-image(); }
+                }
             }
 
             Rectangle { horizontal-stretch: 1; }  // Right spacer
 
             // ================================================================
-            // RIGHT SECTION - QUICK ACTIONS
+            // RIGHT SECTION - ACTIONS
             // ================================================================
             HorizontalLayout {
-                spacing: MaterialStyleMetrics.spacing-8;
+                spacing: 4px;
                 alignment: end;
 
-                TextButton {
+                MenuButton {
                     text: "Save";
+                    is-open: false;
                     clicked => {
                         root.file-save();
                     }

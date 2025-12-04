@@ -24,15 +24,6 @@ export component BottomBar {
     in property <int> current-class: 1;
 
     // ========================================================================
-    // NAVIGATION CALLBACKS
-    // ========================================================================
-    callback first-image();
-    callback prev-image();
-    callback randomize();
-    callback next-image();
-    callback last-image();
-
-    // ========================================================================
     // LAYOUT
     // ========================================================================
     min-height: 32px;
@@ -46,62 +37,6 @@ export component BottomBar {
             padding-right: 12px;
             spacing: 12px;
 
-            // ================================================================
-            // NAVIGATION SECTION (Fixed width)
-            // ================================================================
-            Rectangle {
-                width: 200px;
-
-                HorizontalLayout {
-                    spacing: 4px;
-                    alignment: start;
-
-                    // First button
-                    IconButton {
-                        icon: Icons.chevron-backward;
-                        clicked => { root.first-image(); }
-                    }
-
-                    // Previous button
-                    IconButton {
-                        icon: Icons.chevron-backward;
-                        clicked => { root.prev-image(); }
-                    }
-
-                    // Randomize button (stub)
-                    Rectangle {
-                        width: 32px;
-                        height: 32px;
-                        border-radius: 16px;
-                        background: transparent;
-
-                        MaterialText {
-                            text: "🔀";
-                            font-size: 16px;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-
-                        TouchArea {
-                            clicked => { root.randomize(); }
-                        }
-                    }
-
-                    // Next button
-                    IconButton {
-                        icon: Icons.chevron-forward;
-                        clicked => { root.next-image(); }
-                    }
-
-                    // Last button
-                    IconButton {
-                        icon: Icons.chevron-forward;
-                        clicked => { root.last-image(); }
-                    }
-                }
-            }
-
-            VerticalDivider { }
 
             // ================================================================
             // DATASET POSITION (Fixed width)
