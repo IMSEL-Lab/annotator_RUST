@@ -7,6 +7,8 @@ import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
 import { MaterialTypography } from "../material/ui/styling/material_typography.slint";
 import { MaterialStyleMetrics } from "../material/ui/styling/material_style_metrics.slint";
 import { MaterialText } from "../material/ui/components/material_text.slint";
+import { Icon } from "../material/ui/components/icon.slint";
+import { Icons } from "../material/ui/icons/icons.slint";
 import { ListView } from "std-widgets.slint";
 
 // ============================================================================
@@ -32,12 +34,12 @@ export struct HierarchyOption {
 
 component ToolButton inherits Rectangle {
     in property <string> label;
-    in property <string> icon-text;  // Simple text icon like "□" or "●"
+    in property <image> icon-source;  // SVG icon source
     in property <bool> is-active;
     in property <color> bg-color: MaterialPalette.surface-container;
     in property <color> bg-active-color: MaterialPalette.primary-container;
-    in property <color> text-color: MaterialPalette.on-surface;
-    in property <color> text-active-color: MaterialPalette.on-primary-container;
+    in property <color> icon-color: MaterialPalette.on-surface;
+    in property <color> icon-active-color: MaterialPalette.on-primary-container;
     in property <color> label-color: MaterialPalette.on-surface-variant;
     in property <color> label-active-color: MaterialPalette.on-primary-container;
 
@@ -48,15 +50,22 @@ component ToolButton inherits Rectangle {
     border-radius: 8px;
 
     VerticalLayout {
+        padding: 8px;
+        spacing: 6px;
         alignment: center;
-        spacing: 4px;
 
-        // Icon (using text for simplicity)
-        MaterialText {
-            text: root.icon-text;
-            style: MaterialTypography.headline-small;
-            color: root.is-active ? root.text-active-color : root.text-color;
-            horizontal-alignment: center;
+        // Icon container (centered)
+        Rectangle {
+            height: 28px;
+
+            Icon {
+                source: root.icon-source;
+                colorize: root.is-active ? root.icon-active-color : root.icon-color;
+                width: 28px;
+                height: 28px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
         }
 
         // Label
@@ -151,12 +160,12 @@ export component SidePanel {
 
                 ToolButton {
                     label: "Bounding Box";
-                    icon-text: "▢";
+                    icon-source: Icons.bounding_box;
                     is-active: root.current-tool == "BBox (B)";
                     bg-color: MaterialPalette.primary-container;
                     bg-active-color: MaterialPalette.primary;
-                    text-color: MaterialPalette.on-primary-container;
-                    text-active-color: MaterialPalette.on-primary;
+                    icon-color: MaterialPalette.on-primary-container;
+                    icon-active-color: MaterialPalette.on-primary;
                     label-color: MaterialPalette.on-primary-container;
                     label-active-color: MaterialPalette.on-primary;
                     clicked => { root.tool-selected("bbox"); }
@@ -164,12 +173,12 @@ export component SidePanel {
 
                 ToolButton {
                     label: "Center Point";
-                    icon-text: "⬤";
+                    icon-source: Icons.center_point;
                     is-active: root.current-tool == "Point (C)";
                     bg-color: MaterialPalette.tertiary-container;
                     bg-active-color: MaterialPalette.tertiary;
-                    text-color: MaterialPalette.on-tertiary-container;
-                    text-active-color: MaterialPalette.on-tertiary;
+                    icon-color: MaterialPalette.on-tertiary-container;
+                    icon-active-color: MaterialPalette.on-tertiary;
                     label-color: MaterialPalette.on-tertiary-container;
                     label-active-color: MaterialPalette.on-tertiary;
                     clicked => { root.tool-selected("point"); }
@@ -177,12 +186,12 @@ export component SidePanel {
 
                 ToolButton {
                     label: "Segmentation";
-                    icon-text: "⬣";
+                    icon-source: Icons.polygon;
                     is-active: root.current-tool == "Polygon (Hold S)";
                     bg-color: MaterialPalette.secondary-container;
                     bg-active-color: MaterialPalette.secondary;
-                    text-color: MaterialPalette.on-secondary-container;
-                    text-active-color: MaterialPalette.on-secondary;
+                    icon-color: MaterialPalette.on-secondary-container;
+                    icon-active-color: MaterialPalette.on-secondary;
                     label-color: MaterialPalette.on-secondary-container;
                     label-active-color: MaterialPalette.on-secondary;
                     clicked => { root.tool-selected("polygon"); }
