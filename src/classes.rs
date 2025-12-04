@@ -92,69 +92,68 @@ pub fn flatten_hierarchy(nodes: &[HierarchicalClassNode]) -> Vec<ClassDefinition
 
 /// Load class configuration from YAML file
 pub fn load_classes(path: Option<&str>) -> ClassConfig {
-    let config_path = match path {
-        Some(p) => p.to_string(),
-        None => {
-            // Try default locations
-            let default_locations = vec![
-                "./coco_hierarchy.yaml",
-                "./classes.yaml",
-                "~/.config/annotator/classes.yaml",
-            ];
+    // Preferred search order:
+    //   1) explicit path (if provided)
+    //   2) ./classes.yaml in the repo (requested default)
+    //   3) ./coco_hierarchy.yaml
+    //   4) ~/.config/annotator/classes.yaml
+    let mut search_paths: Vec<String> = Vec::new();
+    if let Some(p) = path {
+        search_paths.push(p.to_string());
+    }
+    search_paths.push("./classes.yaml".to_string());
+    search_paths.push("./coco_hierarchy.yaml".to_string());
+    search_paths.push("~/.config/annotator/classes.yaml".to_string());
 
-            let mut found_path = None;
-            for loc in default_locations {
-                let expanded = shellexpand::tilde(loc);
-                if Path::new(expanded.as_ref()).exists() {
-                    found_path = Some(expanded.to_string());
-                    break;
-                }
-            }
-
-            match found_path {
-                Some(p) => p,
-                None => return ClassConfig::default(),
-            }
+    for candidate in search_paths {
+        let expanded = shellexpand::tilde(&candidate);
+        let path_obj = Path::new(expanded.as_ref());
+        if !path_obj.exists() {
+            continue;
         }
-    };
 
-    // Expand tilde in path
-    let expanded_path = shellexpand::tilde(&config_path);
-
-    match std::fs::read_to_string(expanded_path.as_ref()) {
-        Ok(content) => {
-            // Try parsing as hierarchy array first
-            if let Ok(hierarchy) = serde_yaml::from_str::<Vec<HierarchicalClassNode>>(&content) {
-                // Successfully parsed as pure hierarchy - generate ClassConfig
-                let classes = flatten_hierarchy(&hierarchy);
-                return ClassConfig {
-                    classes,
-                    hierarchy,
-                };
-            }
-
-            // Try parsing as full ClassConfig
-            match serde_yaml::from_str::<ClassConfig>(&content) {
-                Ok(mut config) => {
-                    // If hierarchy exists but classes is empty, flatten hierarchy
-                    if !config.hierarchy.is_empty() && config.classes.is_empty() {
-                        config.classes = flatten_hierarchy(&config.hierarchy);
-                    }
-                    config
-                }
-                Err(e) => {
-                    eprintln!("Failed to parse class config YAML: {}. Using defaults.", e);
-                    ClassConfig::default()
-                }
-            }
+        match try_load_class_file(path_obj) {
+            Ok(cfg) => return cfg,
+            Err(e) => eprintln!("Failed to parse class config '{}': {}", path_obj.display(), e),
         }
-        Err(e) => {
-            eprintln!(
-                "Failed to read class config file '{}': {}. Using defaults.",
-                expanded_path, e
-            );
-            ClassConfig::default()
+    }
+
+    // As a final fallback, try to use the bundled default at compile time
+    if let Ok(cfg) = parse_class_content(include_str!("../classes.yaml")) {
+        return cfg;
+    }
+
+    // Nothing found/parsable; fall back to built-in defaults
+    eprintln!("No class config found; using defaults.");
+    ClassConfig::default()
+}
+
+/// Attempt to load a class file; returns an error string on failure so caller
+/// can continue searching other candidates.
+fn try_load_class_file(path: &Path) -> Result<ClassConfig, String> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| format!("read error {}: {}", path.display(), e))?;
+
+    parse_class_content(&content)
+}
+
+/// Parse class YAML content, accepting either a hierarchy array or full ClassConfig
+fn parse_class_content(content: &str) -> Result<ClassConfig, String> {
+    // Try parsing as pure hierarchy first
+    if let Ok(hierarchy) = serde_yaml::from_str::<Vec<HierarchicalClassNode>>(content) {
+        let classes = flatten_hierarchy(&hierarchy);
+        return Ok(ClassConfig { classes, hierarchy });
+    }
+
+    // Try parsing as full ClassConfig
+    match serde_yaml::from_str::<ClassConfig>(content) {
+        Ok(mut config) => {
+            if !config.hierarchy.is_empty() && config.classes.is_empty() {
+                config.classes = flatten_hierarchy(&config.hierarchy);
+            }
+            Ok(config)
         }
+        Err(e) => Err(format!("yaml parse error: {}", e)),
     }
 }
 

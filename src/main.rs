@@ -547,8 +547,10 @@ fn main() -> Result<(), slint::PlatformError> {
     let config = Rc::new(RefCell::new(config::load_config()));
 
     // Load class definitions
-    let class_config_path = config.borrow().classes.config_file.clone();
-    let classes = Rc::new(RefCell::new(classes::load_classes(class_config_path.as_deref())));
+    // Always prefer the bundled default classes.yaml in the repo root; users can
+    // still override by replacing that file. This avoids stale paths in the
+    // persisted config pointing elsewhere.
+    let classes = Rc::new(RefCell::new(classes::load_classes(None)));
 
     // Apply initial theme from config
     let _theme_name = config.borrow().appearance.theme.clone();
