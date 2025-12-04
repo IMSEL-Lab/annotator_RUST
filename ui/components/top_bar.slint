@@ -19,19 +19,24 @@ import { Icons } from "../material/ui/icons/icons.slint";
 component MenuButton inherits Rectangle {
     in property <string> text;
     in property <bool> is-open;
+    in property <color> bg-color: MaterialPalette.surface-container;
+    in property <color> bg-hover-color: MaterialPalette.surface-container-high;
+    in property <color> bg-active-color: MaterialPalette.primary-container;
+    in property <color> text-color: MaterialPalette.on-surface;
+    in property <color> text-active-color: MaterialPalette.on-primary-container;
     callback clicked();
     callback hovered();
 
     width: 60px;
     height: 32px;
     border-radius: 4px;
-    background: root.is-open ? MaterialPalette.primary-container :
-                (touch.has-hover ? MaterialPalette.surface-container-high : MaterialPalette.surface-container);
+    background: root.is-open ? root.bg-active-color :
+                (touch.has-hover ? root.bg-hover-color : root.bg-color);
 
     MaterialText {
         text: root.text;
         style: MaterialTypography.label-large;
-        color: root.is-open ? MaterialPalette.on-primary-container : MaterialPalette.on-surface;
+        color: root.is-open ? root.text-active-color : root.text-color;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -53,16 +58,19 @@ component MenuButton inherits Rectangle {
 // ============================================================================
 component NavButton inherits Rectangle {
     in property <image> icon;
+    in property <color> bg-color: MaterialPalette.surface-container;
+    in property <color> bg-hover-color: MaterialPalette.surface-container-highest;
+    in property <color> icon-color: MaterialPalette.on-surface;
     callback clicked();
 
     width: 32px;
     height: 32px;
     border-radius: 16px;
-    background: touch.has-hover ? MaterialPalette.surface-container-highest : MaterialPalette.surface-container;
+    background: touch.has-hover ? root.bg-hover-color : root.bg-color;
 
     Icon {
         source: root.icon;
-        colorize: MaterialPalette.on-surface;
+        colorize: root.icon-color;
         width: 20px;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
@@ -148,6 +156,11 @@ export component TopBar {
                 file-menu-button := MenuButton {
                     text: "File";
                     is-open: root.file-menu-open;
+                    bg-color: MaterialPalette.secondary-container;
+                    bg-hover-color: MaterialPalette.secondary-container;
+                    bg-active-color: MaterialPalette.secondary;
+                    text-color: MaterialPalette.on-secondary-container;
+                    text-active-color: MaterialPalette.on-secondary;
                     clicked => {
                         root.view-menu-open = false;
                         root.tools-menu-open = false;
@@ -171,6 +184,11 @@ export component TopBar {
                 view-menu-button := MenuButton {
                     text: "View";
                     is-open: root.view-menu-open;
+                    bg-color: MaterialPalette.tertiary-container;
+                    bg-hover-color: MaterialPalette.tertiary-container;
+                    bg-active-color: MaterialPalette.tertiary;
+                    text-color: MaterialPalette.on-tertiary-container;
+                    text-active-color: MaterialPalette.on-tertiary;
                     clicked => {
                         root.file-menu-open = false;
                         root.tools-menu-open = false;
@@ -194,6 +212,11 @@ export component TopBar {
                 tools-menu-button := MenuButton {
                     text: "Tools";
                     is-open: root.tools-menu-open;
+                    bg-color: MaterialPalette.error-container;
+                    bg-hover-color: MaterialPalette.error-container;
+                    bg-active-color: MaterialPalette.error;
+                    text-color: MaterialPalette.on-error-container;
+                    text-active-color: MaterialPalette.on-error;
                     clicked => {
                         root.file-menu-open = false;
                         root.view-menu-open = false;
@@ -227,30 +250,45 @@ export component TopBar {
                 // First button (skip to start)
                 NavButton {
                     icon: Icons.skip-previous;
+                    bg-color: MaterialPalette.tertiary-container;
+                    bg-hover-color: MaterialPalette.tertiary;
+                    icon-color: MaterialPalette.on-tertiary-container;
                     clicked => { root.first-image(); }
                 }
 
                 // Previous button
                 NavButton {
                     icon: Icons.chevron-backward;
+                    bg-color: MaterialPalette.secondary-container;
+                    bg-hover-color: MaterialPalette.secondary;
+                    icon-color: MaterialPalette.on-secondary-container;
                     clicked => { root.prev-image(); }
                 }
 
                 // Randomize/Shuffle button
                 NavButton {
                     icon: Icons.shuffle;
+                    bg-color: MaterialPalette.error-container;
+                    bg-hover-color: MaterialPalette.error;
+                    icon-color: MaterialPalette.on-error-container;
                     clicked => { root.randomize(); }
                 }
 
                 // Next button
                 NavButton {
                     icon: Icons.chevron-forward;
+                    bg-color: MaterialPalette.secondary-container;
+                    bg-hover-color: MaterialPalette.secondary;
+                    icon-color: MaterialPalette.on-secondary-container;
                     clicked => { root.next-image(); }
                 }
 
                 // Last button (skip to end)
                 NavButton {
                     icon: Icons.skip-next;
+                    bg-color: MaterialPalette.tertiary-container;
+                    bg-hover-color: MaterialPalette.tertiary;
+                    icon-color: MaterialPalette.on-tertiary-container;
                     clicked => { root.last-image(); }
                 }
             }
@@ -267,6 +305,11 @@ export component TopBar {
                 MenuButton {
                     text: "Save";
                     is-open: false;
+                    bg-color: MaterialPalette.primary-container;
+                    bg-hover-color: MaterialPalette.primary;
+                    bg-active-color: MaterialPalette.primary;
+                    text-color: MaterialPalette.on-primary-container;
+                    text-active-color: MaterialPalette.on-primary;
                     clicked => {
                         root.file-save();
                     }
