@@ -12,6 +12,41 @@ import { MenuItem } from "../material/ui/items/menu_item.slint";
 import { MaterialStyleMetrics } from "../material/ui/styling/material_style_metrics.slint";
 import { MaterialText } from "../material/ui/components/material_text.slint";
 
+// ============================================================================
+// MENU BUTTON COMPONENT - Rectangular with small radius
+// ============================================================================
+component MenuButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> is-open;
+    callback clicked();
+    callback hovered();
+
+    width: 60px;
+    height: 32px;
+    border-radius: 4px;
+    background: root.is-open ? MaterialPalette.surface-container-highest :
+                (touch.has-hover ? MaterialPalette.surface-container-high : transparent);
+
+    MaterialText {
+        text: root.text;
+        style: MaterialTypography.label-large;
+        color: MaterialPalette.on-surface;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+        mouse-cursor: pointer;
+
+        moved => {
+            if (self.has-hover) {
+                root.hovered();
+            }
+        }
+    }
+}
+
 export component TopBar {
     // ========================================================================
     // FILE MENU CALLBACKS
@@ -34,6 +69,14 @@ export component TopBar {
     // TOOLS MENU CALLBACKS
     // ========================================================================
     callback tools-settings();
+
+    // ========================================================================
+    // MENU STATE - Track which menu is open
+    // ========================================================================
+    property <bool> file-menu-open: false;
+    property <bool> view-menu-open: false;
+    property <bool> tools-menu-open: false;
+    property <bool> any-menu-open: root.file-menu-open || root.view-menu-open || root.tools-menu-open;
 
     // ========================================================================
     // LAYOUT PROPERTIES
@@ -61,27 +104,75 @@ export component TopBar {
             // LEFT SECTION - MENU BUTTONS
             // ================================================================
             HorizontalLayout {
-                spacing: MaterialStyleMetrics.spacing-4;
+                spacing: 4px;
                 alignment: start;
 
-                file-menu-button := TextButton {
+                file-menu-button := MenuButton {
                     text: "File";
+                    is-open: root.file-menu-open;
                     clicked => {
+                        root.view-menu-open = false;
+                        root.tools-menu-open = false;
+                        root.file-menu-open = true;
+                        view-menu.close();
+                        tools-menu.close();
                         file-menu.show();
                     }
-                }
-
-                view-menu-button := TextButton {
-                    text: "View";
-                    clicked => {
-                        view-menu.show();
+                    hovered => {
+                        if (root.any-menu-open) {
+                            root.view-menu-open = false;
+                            root.tools-menu-open = false;
+                            root.file-menu-open = true;
+                            view-menu.close();
+                            tools-menu.close();
+                            file-menu.show();
+                        }
                     }
                 }
 
-                tools-menu-button := TextButton {
-                    text: "Tools";
+                view-menu-button := MenuButton {
+                    text: "View";
+                    is-open: root.view-menu-open;
                     clicked => {
+                        root.file-menu-open = false;
+                        root.tools-menu-open = false;
+                        root.view-menu-open = true;
+                        file-menu.close();
+                        tools-menu.close();
+                        view-menu.show();
+                    }
+                    hovered => {
+                        if (root.any-menu-open) {
+                            root.file-menu-open = false;
+                            root.tools-menu-open = false;
+                            root.view-menu-open = true;
+                            file-menu.close();
+                            tools-menu.close();
+                            view-menu.show();
+                        }
+                    }
+                }
+
+                tools-menu-button := MenuButton {
+                    text: "Tools";
+                    is-open: root.tools-menu-open;
+                    clicked => {
+                        root.file-menu-open = false;
+                        root.view-menu-open = false;
+                        root.tools-menu-open = true;
+                        file-menu.close();
+                        view-menu.close();
                         tools-menu.show();
+                    }
+                    hovered => {
+                        if (root.any-menu-open) {
+                            root.file-menu-open = false;
+                            root.view-menu-open = false;
+                            root.tools-menu-open = true;
+                            file-menu.close();
+                            view-menu.close();
+                            tools-menu.show();
+                        }
                     }
                 }
             }
@@ -134,8 +225,11 @@ export component TopBar {
         ];
 
         activated(index) => {
-            // Close menu immediately
+            // Close menu and reset state
             self.close();
+            root.file-menu-open = false;
+            root.view-menu-open = false;
+            root.tools-menu-open = false;
 
             // Handle menu action
             if (index == 0) { root.file-open-dataset(); }
@@ -161,8 +255,11 @@ export component TopBar {
         ];
 
         activated(index) => {
-            // Close menu immediately
+            // Close menu and reset state
             self.close();
+            root.file-menu-open = false;
+            root.view-menu-open = false;
+            root.tools-menu-open = false;
 
             // Handle menu action
             if (index == 0) { root.view-reset(); }
@@ -184,8 +281,11 @@ export component TopBar {
         ];
 
         activated(index) => {
-            // Close menu immediately
+            // Close menu and reset state
             self.close();
+            root.file-menu-open = false;
+            root.view-menu-open = false;
+            root.tools-menu-open = false;
 
             // Handle menu action
             if (index == 0) { root.tools-settings(); }
