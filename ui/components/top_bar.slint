@@ -1,0 +1,194 @@
+// ============================================================================
+// TOP BAR COMPONENT
+// ============================================================================
+// The main menu bar at the top of the application window
+// Contains File, View, and Tools menus
+
+import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
+import { MaterialTypography } from "../material/ui/styling/material_typography.slint";
+import { TextButton } from "../material/ui/components/text_button.slint";
+import { PopupMenu } from "../material/ui/components/menu.slint";
+import { MenuItem } from "../material/ui/items/menu_item.slint";
+import { MaterialStyleMetrics } from "../material/ui/styling/material_style_metrics.slint";
+import { MaterialText } from "../material/ui/components/material_text.slint";
+
+export component TopBar {
+    // ========================================================================
+    // FILE MENU CALLBACKS
+    // ========================================================================
+    callback file-open-dataset();
+    callback file-new-dataset();
+    callback file-save();
+    callback file-export-coco();
+    callback file-export-voc();
+
+    // ========================================================================
+    // VIEW MENU CALLBACKS
+    // ========================================================================
+    callback view-reset();
+    callback view-toggle-sidebar();
+    callback view-theme-dark();
+    callback view-theme-light();
+
+    // ========================================================================
+    // TOOLS MENU CALLBACKS
+    // ========================================================================
+    callback tools-settings();
+
+    // ========================================================================
+    // LAYOUT PROPERTIES
+    // ========================================================================
+    min-height: 48px;
+
+    // ========================================================================
+    // MAIN CONTAINER
+    // ========================================================================
+    Rectangle {
+        background: MaterialPalette.surface;
+
+        // Bottom border separator
+        Rectangle {
+            y: parent.height - 1px;
+            height: 1px;
+            background: MaterialPalette.outline-variant;
+        }
+
+        HorizontalLayout {
+            padding-left: MaterialStyleMetrics.padding-16;
+            padding-right: MaterialStyleMetrics.padding-16;
+            spacing: MaterialStyleMetrics.spacing-8;
+            alignment: center;
+
+            // ================================================================
+            // APP TITLE
+            // ================================================================
+            MaterialText {
+                text: "Annotator v0";
+                style: MaterialTypography.title-medium;
+                vertical-alignment: center;
+                color: MaterialPalette.on-surface;
+            }
+
+            Rectangle { width: 16px; }  // Spacer
+
+            // ================================================================
+            // FILE MENU
+            // ================================================================
+            file-menu-button := TextButton {
+                text: "File";
+                clicked => {
+                    file-menu.show();
+                }
+            }
+
+            // ================================================================
+            // VIEW MENU
+            // ================================================================
+            view-menu-button := TextButton {
+                text: "View";
+                clicked => {
+                    view-menu.show();
+                }
+            }
+
+            // ================================================================
+            // TOOLS MENU
+            // ================================================================
+            tools-menu-button := TextButton {
+                text: "Tools";
+                clicked => {
+                    tools-menu.show();
+                }
+            }
+
+            // ================================================================
+            // SPACER - Pushes quick actions to the right
+            // ================================================================
+            Rectangle { horizontal-stretch: 1; }
+
+            // ================================================================
+            // QUICK ACTIONS
+            // ================================================================
+            TextButton {
+                text: "Save";
+                clicked => {
+                    root.file-save();
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+    // FILE MENU DROPDOWN
+    // ========================================================================
+    file-menu := PopupMenu {
+        x: file-menu-button.absolute-position.x;
+        y: file-menu-button.absolute-position.y + file-menu-button.height;
+
+        items: [
+            { text: "Open Dataset...", enabled: true },
+            { text: "New Dataset...", enabled: true },
+            { text: "Save", trailing-text: "Ctrl+S", enabled: true },
+            { text: "Export COCO...", enabled: true },
+            { text: "Export VOC...", enabled: true },
+        ];
+
+        activated(index) => {
+            // Close menu immediately
+            self.close();
+
+            // Handle menu action
+            if (index == 0) { root.file-open-dataset(); }
+            else if (index == 1) { root.file-new-dataset(); }
+            else if (index == 2) { root.file-save(); }
+            else if (index == 3) { root.file-export-coco(); }
+            else if (index == 4) { root.file-export-voc(); }
+        }
+    }
+
+    // ========================================================================
+    // VIEW MENU DROPDOWN
+    // ========================================================================
+    view-menu := PopupMenu {
+        x: view-menu-button.absolute-position.x;
+        y: view-menu-button.absolute-position.y + view-menu-button.height;
+
+        items: [
+            { text: "Reset View", trailing-text: "H", enabled: true },
+            { text: "Toggle Sidebar", enabled: true },
+            { text: "Dark Theme", enabled: true },
+            { text: "Light Theme", enabled: true },
+        ];
+
+        activated(index) => {
+            // Close menu immediately
+            self.close();
+
+            // Handle menu action
+            if (index == 0) { root.view-reset(); }
+            else if (index == 1) { root.view-toggle-sidebar(); }
+            else if (index == 2) { root.view-theme-dark(); }
+            else if (index == 3) { root.view-theme-light(); }
+        }
+    }
+
+    // ========================================================================
+    // TOOLS MENU DROPDOWN
+    // ========================================================================
+    tools-menu := PopupMenu {
+        x: tools-menu-button.absolute-position.x;
+        y: tools-menu-button.absolute-position.y + tools-menu-button.height;
+
+        items: [
+            { text: "Settings...", enabled: true }
+        ];
+
+        activated(index) => {
+            // Close menu immediately
+            self.close();
+
+            // Handle menu action
+            if (index == 0) { root.tools-settings(); }
+        }
+    }
+}
