@@ -92,6 +92,9 @@ export component AppWindow inherits Window {
     callback deselect-all();
     callback next-image();
     callback prev-image();
+    callback first-image();
+    callback last-image();
+    callback randomize();
 
     // ========================================================================
     // TOOL STATE
@@ -249,18 +252,12 @@ export component AppWindow inherits Window {
             }
             tools-settings => { root.settings-dialog-visible = true; }
 
-            // Navigation callbacks
-            first-image => {
-                root.log-debug("First image");
-            }
+            // Navigation callbacks connected to AppWindow handlers
+            first-image => { root.first-image(); }
             prev-image => { root.prev-image(); }
-            randomize => {
-                root.log-debug("Randomize");
-            }
+            randomize => { root.randomize(); }
             next-image => { root.next-image(); }
-            last-image => {
-                root.log-debug("Last image");
-            }
+            last-image => { root.last-image(); }
         }
 
         HorizontalLayout {
