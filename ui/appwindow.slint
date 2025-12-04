@@ -137,6 +137,10 @@ export component AppWindow inherits Window {
     callback undo-action();
     callback redo-action();
 
+    // Copy/Paste callbacks
+    callback copy-annotation();
+    callback paste-annotation();
+
     // Phase 3: Resize callbacks
     callback start-resize(int, string);  // (annotation index, handle type: "corner-tl", "corner-tr", "corner-bl", "corner-br", "edge-t", "edge-r", "edge-b", "edge-l")
     callback update-resize(float, float);  // Image coords during drag
@@ -1344,6 +1348,14 @@ export component AppWindow inherits Window {
             } else if ((event.text == "y" || event.text == "Y") && (event.modifiers.control || event.modifiers.meta)) {
                 // Ctrl+Y: Redo (alternative)
                 root.redo-action();
+                accept
+            } else if ((event.text == "c" || event.text == "C") && (event.modifiers.control || event.modifiers.meta)) {
+                // Ctrl+C: Copy
+                root.copy-annotation();
+                accept
+            } else if ((event.text == "v" || event.text == "V") && (event.modifiers.control || event.modifiers.meta)) {
+                // Ctrl+V: Paste
+                root.paste-annotation();
                 accept
             } else if ((event.text == "s" || event.text == "S") && (event.modifiers.control || event.modifiers.meta)) {
                 root.save-dataset();

@@ -700,6 +700,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let draw_state = Rc::new(RefCell::new(DrawState::new()));
     let resize_state = Rc::new(RefCell::new(ResizeState::new()));
     let undo_history = Rc::new(RefCell::new(UndoHistory::new(50))); // Max 50 undo steps
+    let clipboard: Rc<RefCell<Option<Annotation>>> = Rc::new(RefCell::new(None)); // Annotation clipboard for copy/paste
     let annotations = std::rc::Rc::new(slint::VecModel::from(Vec::<Annotation>::new()));
     ui.set_annotations(annotations.clone().into());
 
@@ -1311,6 +1312,80 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             } else if let Some(ui) = ui_handle.upgrade() {
                 ui.set_status_text("Nothing to redo".into());
+            }
+        });
+    }
+
+    // Copy annotation (Ctrl+C)
+    {
+        let clipboard_ref = clipboard.clone();
+        let annotations_ref = annotations.clone();
+        let ui_handle = ui.as_weak();
+
+        ui.on_copy_annotation(move || {
+            let count = annotations_ref.row_count();
+
+            // Find the selected annotation
+            for i in 0..count {
+                if let Some(ann) = annotations_ref.row_data(i) {
+                    if ann.selected {
+                        *clipboard_ref.borrow_mut() = Some(ann.clone());
+                        if let Some(ui) = ui_handle.upgrade() {
+                            ui.set_status_text(format!("Copied annotation {}", ann.id).into());
+                        }
+                        return;
+                    }
+                }
+            }
+
+            // No selection found
+            if let Some(ui) = ui_handle.upgrade() {
+                ui.set_status_text("No annotation selected to copy".into());
+            }
+        });
+    }
+
+    // Paste annotation (Ctrl+V)
+    {
+        let clipboard_ref = clipboard.clone();
+        let annotations_ref = annotations.clone();
+        let undo_history_ref = undo_history.clone();
+        let ui_handle = ui.as_weak();
+
+        ui.on_paste_annotation(move || {
+            if let Some(copied_ann) = clipboard_ref.borrow().clone() {
+                // Push undo history before adding annotation
+                let snapshot = snapshot_annotations(&annotations_ref);
+                undo_history_ref.borrow_mut().push(snapshot);
+
+                // Create new annotation with offset and new ID
+                let new_id = next_id_from_annotations(
+                    &(0..annotations_ref.row_count())
+                        .filter_map(|i| annotations_ref.row_data(i))
+                        .collect::<Vec<_>>(),
+                    1
+                );
+
+                // Offset by 5% in both directions
+                let offset_x = 0.05;
+                let offset_y = 0.05;
+
+                let mut new_ann = copied_ann.clone();
+                new_ann.id = new_id;
+                new_ann.x += offset_x;
+                new_ann.y += offset_y;
+                new_ann.selected = false; // Don't select the pasted annotation
+
+                annotations_ref.push(new_ann);
+
+                if let Some(ui) = ui_handle.upgrade() {
+                    ui.set_status_text(format!("Pasted annotation {}", new_id).into());
+                }
+            } else {
+                // Nothing in clipboard
+                if let Some(ui) = ui_handle.upgrade() {
+                    ui.set_status_text("No annotation to paste".into());
+                }
             }
         });
     }
