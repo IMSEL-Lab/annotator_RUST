@@ -56,13 +56,13 @@ export component TopBar {
         HorizontalLayout {
             padding-left: MaterialStyleMetrics.padding-16;
             padding-right: MaterialStyleMetrics.padding-16;
-            alignment: center;
 
             // ================================================================
             // LEFT SECTION - MENU BUTTONS
             // ================================================================
             HorizontalLayout {
                 spacing: MaterialStyleMetrics.spacing-4;
+                alignment: start;
 
                 file-menu-button := TextButton {
                     text: "File";
@@ -106,6 +106,7 @@ export component TopBar {
             // ================================================================
             HorizontalLayout {
                 spacing: MaterialStyleMetrics.spacing-8;
+                alignment: end;
 
                 TextButton {
                     text: "Save";
