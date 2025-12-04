@@ -2,7 +2,7 @@
 // TOP BAR COMPONENT
 // ============================================================================
 // The main menu bar at the top of the application window
-// Contains File, View, and Tools menus
+// Menus on the left, title in the center, quick actions on the right
 
 import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
 import { MaterialTypography } from "../material/ui/styling/material_typography.slint";
@@ -56,63 +56,62 @@ export component TopBar {
         HorizontalLayout {
             padding-left: MaterialStyleMetrics.padding-16;
             padding-right: MaterialStyleMetrics.padding-16;
-            spacing: MaterialStyleMetrics.spacing-8;
             alignment: center;
 
             // ================================================================
-            // APP TITLE
+            // LEFT SECTION - MENU BUTTONS
             // ================================================================
+            HorizontalLayout {
+                spacing: MaterialStyleMetrics.spacing-4;
+
+                file-menu-button := TextButton {
+                    text: "File";
+                    clicked => {
+                        file-menu.show();
+                    }
+                }
+
+                view-menu-button := TextButton {
+                    text: "View";
+                    clicked => {
+                        view-menu.show();
+                    }
+                }
+
+                tools-menu-button := TextButton {
+                    text: "Tools";
+                    clicked => {
+                        tools-menu.show();
+                    }
+                }
+            }
+
+            // ================================================================
+            // CENTER SECTION - APP TITLE
+            // ================================================================
+            Rectangle { horizontal-stretch: 1; }  // Left spacer
+
             MaterialText {
-                text: "Annotator v0";
+                text: "RADICAL Image Annotator v0.1";
                 style: MaterialTypography.title-medium;
                 vertical-alignment: center;
+                horizontal-alignment: center;
                 color: MaterialPalette.on-surface;
             }
 
-            Rectangle { width: 16px; }  // Spacer
+            Rectangle { horizontal-stretch: 1; }  // Right spacer
 
             // ================================================================
-            // FILE MENU
+            // RIGHT SECTION - QUICK ACTIONS
             // ================================================================
-            file-menu-button := TextButton {
-                text: "File";
-                clicked => {
-                    file-menu.show();
-                }
-            }
+            HorizontalLayout {
+                spacing: MaterialStyleMetrics.spacing-8;
 
-            // ================================================================
-            // VIEW MENU
-            // ================================================================
-            view-menu-button := TextButton {
-                text: "View";
-                clicked => {
-                    view-menu.show();
-                }
-            }
-
-            // ================================================================
-            // TOOLS MENU
-            // ================================================================
-            tools-menu-button := TextButton {
-                text: "Tools";
-                clicked => {
-                    tools-menu.show();
-                }
-            }
-
-            // ================================================================
-            // SPACER - Pushes quick actions to the right
-            // ================================================================
-            Rectangle { horizontal-stretch: 1; }
-
-            // ================================================================
-            // QUICK ACTIONS
-            // ================================================================
-            TextButton {
-                text: "Save";
-                clicked => {
-                    root.file-save();
+                TextButton {
+                    text: "Save";
+                    clicked => {
+                        root.file-save();
+                    }
                 }
             }
         }

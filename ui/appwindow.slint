@@ -23,6 +23,7 @@ import { Icons } from "material/ui/icons/icons.slint";
 // ============================================================================
 import { TopBar } from "components/top_bar.slint";
 import { SidePanel, ClassItem, HierarchyOption } from "components/side_panel.slint";
+import { BottomBar } from "components/bottom_bar.slint";
 import { SettingsDialog } from "components/dialogs/settings_dialog.slint";
 import { AppTheme } from "app_theme.slint";
 
@@ -56,7 +57,7 @@ struct Annotation {
 // ============================================================================
 
 export component AppWindow inherits Window {
-    title: "Annotator v0";
+    title: "RADICAL Image Annotator v0.1";
     min-width: 1024px;
     min-height: 768px;
     background: MaterialPalette.background;
@@ -582,70 +583,27 @@ export component AppWindow inherits Window {
         // ====================================================================
         // BOTTOM STATUS BAR - Shows position, filename, tool, class info
         // ====================================================================
-        Rectangle {
-            height: 32px;
-            background: MaterialPalette.surface_container;
-            HorizontalLayout {
-                padding: 6px;
-                spacing: 12px;
+        BottomBar {
+            dataset-position: root.dataset-position;
+            current-image-name: root.current-image-name;
+            frame-completed: root.frame-completed;
+            status-text: root.status-text;
+            current-tool: root.current-tool;
+            current-class: root.current-class;
 
-                MaterialText {
-                    text: root.dataset-position == "" ? "No dataset" : root.dataset-position;
-                    style: MaterialTypography.label_small;
-                    color: MaterialPalette.on_surface_variant;
-                    vertical_alignment: center;
-                    width: 60px;
-                }
-
-                VerticalDivider { }
-
-                MaterialText {
-                    text: root.current-image-name;
-                    style: MaterialTypography.label_small;
-                    color: MaterialPalette.on_surface_variant;
-                    vertical_alignment: center;
-                }
-
-                if root.frame-completed: Icon {
-                    source: Icons.check;
-                    colorize: MaterialPalette.primary;
-                    width: 16px;
-                }
-
-                VerticalDivider { }
-
-                MaterialText {
-                    text: root.status-text;
-                    style: MaterialTypography.label_medium;
-                    color: MaterialPalette.on_surface;
-                    vertical_alignment: center;
-                }
-
-                Rectangle { }
-
-                MaterialText {
-                    text: "Tool: " + root.current-tool;
-                    style: MaterialTypography.label_small;
-                    color: root.current-tool == "Neutral" ? MaterialPalette.outline : MaterialPalette.primary;
-                    vertical_alignment: center;
-                }
-
-                MaterialText {
-                    text: "Class: " + root.current-class;
-                    style: MaterialTypography.label_small;
-                    color: MaterialPalette.tertiary;
-                    vertical_alignment: center;
-                }
-
-                IconButton {
-                    icon: Icons.chevron_backward;
-                    clicked => { root.prev-image(); }
-                }
-                
-                IconButton {
-                    icon: Icons.chevron_forward;
-                    clicked => { root.next-image(); }
-                }
+            first-image => {
+                // TODO: Implement first image navigation
+                root.log-debug("First image");
+            }
+            prev-image => { root.prev-image(); }
+            randomize => {
+                // TODO: Implement randomize
+                root.log-debug("Randomize");
+            }
+            next-image => { root.next-image(); }
+            last-image => {
+                // TODO: Implement last image navigation
+                root.log-debug("Last image");
             }
         }
     }
@@ -657,6 +615,7 @@ export component AppWindow inherits Window {
         enable-bboxes: root.enable-bboxes-setting;
         enable-polygons: root.enable-polygons-setting;
         randomize-dataset: root.randomize-dataset-setting;
+
         apply-settings => {
             root.theme-setting = self.theme-selection;
             root.enable-points-setting = self.enable-points;
@@ -680,6 +639,22 @@ export component AppWindow inherits Window {
             );
             root.settings-dialog-visible = false;
         }
+
+        reset-to-defaults => {
+            // Reset all settings to defaults
+            self.theme-selection = "dark";
+            self.text-size = 14;
+            self.ui-scale = 100;
+            self.sidebar-width = 250;
+            self.topbar-height = 48;
+            self.bottombar-height = 32;
+            self.sidebar-left = true;
+            self.enable-points = true;
+            self.enable-bboxes = true;
+            self.enable-polygons = true;
+            self.randomize-dataset = false;
+        }
+
         cancel => {
             root.settings-dialog-visible = false;
         }

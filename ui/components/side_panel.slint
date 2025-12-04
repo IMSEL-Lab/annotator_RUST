@@ -6,9 +6,7 @@
 import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
 import { MaterialTypography } from "../material/ui/styling/material_typography.slint";
 import { MaterialStyleMetrics } from "../material/ui/styling/material_style_metrics.slint";
-import { SegmentedButton } from "../material/ui/components/segmented_button.slint";
 import { MaterialText } from "../material/ui/components/material_text.slint";
-import { VerticalDivider } from "../material/ui/components/divider.slint";
 import { ListView } from "std-widgets.slint";
 
 // ============================================================================
@@ -26,6 +24,54 @@ export struct HierarchyOption {
     key: int,
     label: string,
     is-leaf: bool,
+}
+
+// ============================================================================
+// TOOL BUTTON COMPONENT
+// ============================================================================
+
+component ToolButton inherits Rectangle {
+    in property <string> label;
+    in property <string> icon-text;  // Simple text icon like "□" or "●"
+    in property <bool> is-active;
+
+    callback clicked();
+
+    height: 60px;
+    background: root.is-active ? MaterialPalette.primary-container : MaterialPalette.surface-container;
+    border-radius: 8px;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 4px;
+
+        // Icon (using text for simplicity)
+        MaterialText {
+            text: root.icon-text;
+            style: MaterialTypography.headline-small;
+            color: root.is-active ? MaterialPalette.on-primary-container : MaterialPalette.on-surface;
+            horizontal-alignment: center;
+        }
+
+        // Label
+        MaterialText {
+            text: root.label;
+            style: MaterialTypography.label-small;
+            color: root.is-active ? MaterialPalette.on-primary-container : MaterialPalette.on-surface-variant;
+            horizontal-alignment: center;
+        }
+    }
+
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    // Hover effect
+    states [
+        active when root.is-active : {
+            background: MaterialPalette.primary-container;
+        }
+    ]
 }
 
 // ============================================================================
@@ -88,30 +134,41 @@ export component SidePanel {
             // TOOL SELECTION SECTION
             // ================================================================
             MaterialText {
-                text: "Tools";
+                text: "Drawing Tools";
                 style: MaterialTypography.title-small;
                 color: MaterialPalette.on-surface-variant;
             }
 
-            SegmentedButton {
-                items: [
-                    { text: "Box" },
-                    { text: "Point" },
-                    { text: "Poly" }
-                ];
+            // Tool buttons in a vertical grid
+            VerticalLayout {
+                spacing: 8px;
 
-                // Map current tool string to button index
-                current-index:
-                    root.current-tool == "BBox (B)" ? 0 :
-                    (root.current-tool == "Point (C)" ? 1 :
-                    (root.current-tool == "Polygon (Hold S)" ? 2 : -1));
-
-                // Handle tool selection
-                index-changed(idx) => {
-                    if (idx == 0) { root.tool-selected("bbox"); }
-                    else if (idx == 1) { root.tool-selected("point"); }
-                    else if (idx == 2) { root.tool-selected("polygon"); }
+                ToolButton {
+                    label: "Bounding Box";
+                    icon-text: "□";
+                    is-active: root.current-tool == "BBox (B)";
+                    clicked => { root.tool-selected("bbox"); }
                 }
+
+                ToolButton {
+                    label: "Center Point";
+                    icon-text: "●";
+                    is-active: root.current-tool == "Point (C)";
+                    clicked => { root.tool-selected("point"); }
+                }
+
+                ToolButton {
+                    label: "Polygon";
+                    icon-text: "⬡";
+                    is-active: root.current-tool == "Polygon (Hold S)";
+                    clicked => { root.tool-selected("polygon"); }
+                }
+            }
+
+            // Divider
+            Rectangle {
+                height: 1px;
+                background: MaterialPalette.outline-variant;
             }
 
             // ================================================================
@@ -129,7 +186,7 @@ export component SidePanel {
             if root.hierarchy-mode && root.hierarchy-breadcrumb != "" : Rectangle {
                 height: 32px;
                 background: MaterialPalette.secondary-container;
-                border-radius: 4px;
+                border-radius: 8px;
 
                 HorizontalLayout {
                     padding: 8px;
@@ -203,17 +260,18 @@ export component SidePanel {
             // ================================================================
             if !root.hierarchy-mode : ListView {
                 for item in root.classes : Rectangle {
-                    height: 36px;
-                    background: transparent;
+                    height: 44px;
+                    background: root.current-class == item.id ? MaterialPalette.surface-container-highest : transparent;
+                    border-radius: 8px;
 
                     HorizontalLayout {
-                        spacing: 8px;
-                        padding: 4px;
+                        spacing: 10px;
+                        padding: 8px;
 
                         // Color indicator bar
                         Rectangle {
                             width: 4px;
-                            height: 24px;
+                            height: 28px;
                             y: (parent.height - self.height) / 2;
                             background: item.color;
                             border-radius: 2px;
@@ -221,18 +279,18 @@ export component SidePanel {
 
                         // Keyboard shortcut badge
                         Rectangle {
-                            width: 24px;
-                            height: 24px;
-                            border-radius: 12px;
-                            background: MaterialPalette.surface-container-highest;
+                            width: 28px;
+                            height: 28px;
+                            border-radius: 14px;
+                            background: root.current-class == item.id ? MaterialPalette.primary-container : MaterialPalette.surface-container-highest;
                             y: (parent.height - self.height) / 2;
 
                             MaterialText {
                                 text: item.shortcut;
-                                style: MaterialTypography.label-small;
+                                style: MaterialTypography.label-medium;
                                 horizontal-alignment: center;
                                 vertical-alignment: center;
-                                color: MaterialPalette.on-surface-variant;
+                                color: root.current-class == item.id ? MaterialPalette.on-primary-container : MaterialPalette.on-surface-variant;
                             }
                         }
 
