@@ -7,6 +7,7 @@ mod auto_resize;
 mod hierarchy;
 mod state;
 mod utils;
+mod callbacks;
 
 use state::{
     DatasetEntry, DatasetFile, DatasetFileEntry, DatasetState, DrawState, ResizeState,
@@ -405,251 +406,20 @@ fn main() -> Result<(), slint::PlatformError> {
     // Load first image if dataset present
     (loader)(0);
 
-    // Selection Callbacks
-    let annotations_handle = annotations.clone();
-    let ui_handle = ui.as_weak();
-    // Multi-selection support: Ctrl toggles, Shift extends range, normal click selects only one
-    ui.on_select_annotation(move |index| {
-        let ui = ui_handle.upgrade().unwrap();
-        let shift_held = ui.get_shift_key_held();
-        let ctrl_held = ui.get_ctrl_key_held();
-        let count = annotations_handle.row_count();
-        let target_index = index as usize;
-
-        if ctrl_held {
-            // Ctrl+Click: Toggle selection of clicked annotation
-            if let Some(mut data) = annotations_handle.row_data(target_index) {
-                data.selected = !data.selected;
-                annotations_handle.set_row_data(target_index, data);
-            }
-        } else if shift_held {
-            // Shift+Click: Extend selection from last selected to this one
-            // Find the last selected annotation
-            let mut last_selected: Option<usize> = None;
-            for i in 0..count {
-                if let Some(data) = annotations_handle.row_data(i) {
-                    if data.selected {
-                        last_selected = Some(i);
-                    }
-                }
-            }
-
-            if let Some(start) = last_selected {
-                // Select range from start to target_index
-                let (range_start, range_end) = if start < target_index {
-                    (start, target_index)
-                } else {
-                    (target_index, start)
-                };
-
-                for i in range_start..=range_end {
-                    if let Some(mut data) = annotations_handle.row_data(i) {
-                        data.selected = true;
-                        annotations_handle.set_row_data(i, data);
-                    }
-                }
-            } else {
-                // No existing selection, just select this one
-                for i in 0..count {
-                    if let Some(mut data) = annotations_handle.row_data(i) {
-                        data.selected = i == target_index;
-                        annotations_handle.set_row_data(i, data);
-                    }
-                }
-            }
-        } else {
-            // Normal click: Select only this annotation
-            for i in 0..count {
-                if let Some(mut data) = annotations_handle.row_data(i) {
-                    data.selected = i == target_index;
-                    annotations_handle.set_row_data(i, data);
-                }
-            }
-        }
-    });
-
-    let annotations_handle = annotations.clone();
-    // Clear selection when the canvas is clicked with no modifier.
-    ui.on_deselect_all(move || {
-        let count = annotations_handle.row_count();
-        for i in 0..count {
-            let mut data = annotations_handle.row_data(i).unwrap();
-            if data.selected {
-                data.selected = false;
-                annotations_handle.set_row_data(i, data);
-            }
-        }
-    });
-
-    let annotations_handle = annotations.clone();
-    // Select all annotations (Ctrl+A)
-    ui.on_select_all(move || {
-        let count = annotations_handle.row_count();
-        for i in 0..count {
-            if let Some(mut data) = annotations_handle.row_data(i) {
-                data.selected = true;
-                annotations_handle.set_row_data(i, data);
-            }
-        }
-    });
-
-    let annotations_handle = annotations.clone();
-    let undo_history_ref = undo_history.clone();
-    let ui_handle = ui.as_weak();
-    // Delete all selected annotations (Delete key)
-    ui.on_delete_selected(move || {
-        // Push current state to undo history before deletion
-        undo_history_ref.borrow_mut().push(snapshot_annotations(&annotations_handle));
-
-        let mut deleted_count = 0;
-        let count = annotations_handle.row_count();
-        for i in 0..count {
-            if let Some(mut ann) = annotations_handle.row_data(i) {
-                if ann.selected {
-                    ann.state = "Rejected".into();
-                    ann.selected = false;
-                    annotations_handle.set_row_data(i, ann);
-                    deleted_count += 1;
-                }
-            }
-        }
-
-        if deleted_count > 0 {
-            if let Some(ui) = ui_handle.upgrade() {
-                ui.set_status_text(format!("Deleted {} annotation(s)", deleted_count).into());
-            }
-        }
-    });
-
-    // Dataset navigation callbacks
-    let loader_next = loader.clone();
-    let ds_state_next = dataset_state.clone();
-    let annotations_for_save = annotations.clone();
-    let ui_for_save = ui.as_weak();
-    let image_dimensions_next = image_dimensions.clone();
-    ui.on_next_image(move || {
-        // Drop the immutable borrow before calling the loader (which mutably borrows)
-        let next_idx = {
-            let mut ds_ref = ds_state_next.borrow_mut();
-            let Some(ds) = ds_ref.as_mut() else { return; };
-            if ds.entries.is_empty() {
-                return;
-            }
-
-            if let Some(ui) = ui_for_save.upgrade() {
-                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_next.borrow());
-            }
-
-            let mut idx = ds.current_index;
-            if idx + 1 < ds.entries.len() {
-                idx += 1;
-            }
-            idx
-        };
-
-        loader_next(next_idx);
-    });
-
-    let loader_prev = loader.clone();
-    let ds_state_prev = dataset_state.clone();
-    let annotations_for_save = annotations.clone();
-    let ui_for_save = ui.as_weak();
-    let image_dimensions_prev = image_dimensions.clone();
-    ui.on_prev_image(move || {
-        let prev_idx = {
-            let mut ds_ref = ds_state_prev.borrow_mut();
-            let Some(ds) = ds_ref.as_mut() else { return; };
-            if ds.entries.is_empty() {
-                return;
-            }
-
-            if let Some(ui) = ui_for_save.upgrade() {
-                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_prev.borrow());
-            }
-
-            if ds.current_index == 0 {
-                0
-            } else {
-                ds.current_index - 1
-            }
-        };
-
-        loader_prev(prev_idx);
-    });
-
-    // First image navigation
-    let loader_first = loader.clone();
-    let ds_state_first = dataset_state.clone();
-    let annotations_for_save = annotations.clone();
-    let ui_for_save = ui.as_weak();
-    let image_dimensions_first = image_dimensions.clone();
-    ui.on_first_image(move || {
-        let first_idx = {
-            let mut ds_ref = ds_state_first.borrow_mut();
-            let Some(ds) = ds_ref.as_mut() else { return; };
-            if ds.entries.is_empty() {
-                return;
-            }
-
-            if let Some(ui) = ui_for_save.upgrade() {
-                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_first.borrow());
-            }
-
-            0
-        };
-
-        loader_first(first_idx);
-    });
-
-    // Last image navigation
-    let loader_last = loader.clone();
-    let ds_state_last = dataset_state.clone();
-    let annotations_for_save = annotations.clone();
-    let ui_for_save = ui.as_weak();
-    let image_dimensions_last = image_dimensions.clone();
-    ui.on_last_image(move || {
-        let last_idx = {
-            let mut ds_ref = ds_state_last.borrow_mut();
-            let Some(ds) = ds_ref.as_mut() else { return; };
-            if ds.entries.is_empty() {
-                return;
-            }
-
-            if let Some(ui) = ui_for_save.upgrade() {
-                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_last.borrow());
-            }
-
-            ds.entries.len() - 1
-        };
-
-        loader_last(last_idx);
-    });
-
-    // Randomize - jump to random image
-    let loader_random = loader.clone();
-    let ds_state_random = dataset_state.clone();
-    let annotations_for_save = annotations.clone();
-    let ui_for_save = ui.as_weak();
-    let image_dimensions_random = image_dimensions.clone();
-    ui.on_randomize(move || {
-        use rand::Rng;
-        let random_idx = {
-            let mut ds_ref = ds_state_random.borrow_mut();
-            let Some(ds) = ds_ref.as_mut() else { return; };
-            if ds.entries.is_empty() {
-                return;
-            }
-
-            if let Some(ui) = ui_for_save.upgrade() {
-                save_current_state(ds, &annotations_for_save, &ui, *image_dimensions_random.borrow());
-            }
-
-            let mut rng = rand::thread_rng();
-            rng.gen_range(0..ds.entries.len())
-        };
-
-        loader_random(random_idx);
-    });
+    // Selection callbacks (extracted to callbacks/selection.rs)
+    callbacks::selection::setup_selection_callbacks(
+        &ui,
+        annotations.clone(),
+        undo_history.clone(),
+    );
+    // Dataset navigation callbacks (extracted to callbacks/navigation.rs)
+    callbacks::navigation::setup_navigation_callbacks(
+        &ui,
+        loader.clone(),
+        dataset_state.clone(),
+        annotations.clone(),
+        image_dimensions.clone(),
+    );
 
     // Track global view changes (pan/zoom) to reuse across images
     {
@@ -675,124 +445,13 @@ fn main() -> Result<(), slint::PlatformError> {
             let _ = writeln!(file, "{}", msg);
         }
     });
-
-    // Drawing callbacks
-    let ui_handle = ui.as_weak();
-    let draw_state_handle = draw_state.clone();
-    let annotations_handle = annotations.clone();
-    // Begin box/point drawing: remember anchor and show live preview rectangle.
-    ui.on_start_drawing(move |x, y| {
-        let mut state = draw_state_handle.borrow_mut();
-        state.start_x = x;
-        state.start_y = y;
-
-        // Deselect all annotations when starting a new one
-        for i in 0..annotations_handle.row_count() {
-            if let Some(mut ann) = annotations_handle.row_data(i) {
-                if ann.selected {
-                    ann.selected = false;
-                    annotations_handle.set_row_data(i, ann);
-                }
-            }
-        }
-
-        if let Some(ui) = ui_handle.upgrade() {
-            ui.set_show_preview(true);
-            ui.set_preview_x(x);
-            ui.set_preview_y(y);
-            ui.set_preview_width(0.0);
-            ui.set_preview_height(0.0);
-        }
-    });
-
-    let ui_handle = ui.as_weak();
-    let draw_state_handle = draw_state.clone();
-    ui.on_update_drawing(move |x, y| {
-        let state = draw_state_handle.borrow();
-
-        if let Some(ui) = ui_handle.upgrade() {
-            let min_x = state.start_x.min(x);
-            let min_y = state.start_y.min(y);
-            let width = (x - state.start_x).abs();
-            let height = (y - state.start_y).abs();
-
-            ui.set_preview_x(min_x);
-            ui.set_preview_y(min_y);
-            ui.set_preview_width(width);
-            ui.set_preview_height(height);
-        }
-    });
-
-    let ui_handle = ui.as_weak();
-    let annotations_handle = annotations.clone();
-    let draw_state_handle = draw_state.clone();
-    let undo_history_ref = undo_history.clone();
-    // Finalize a bbox or point when the mouse button is released.
-    ui.on_finish_drawing(move |x, y| {
-        // Push current state to undo history before creating new annotation
-        undo_history_ref.borrow_mut().push(snapshot_annotations(&annotations_handle));
-
-        let mut state = draw_state_handle.borrow_mut();
-
-        if let Some(ui) = ui_handle.upgrade() {
-            ui.set_show_preview(false);
-
-            let min_x = state.start_x.min(x);
-            let min_y = state.start_y.min(y);
-            let width = (x - state.start_x).abs();
-            let height = (y - state.start_y).abs();
-
-            let tool = ui.get_current_tool();
-            let class = ui.get_current_class();
-
-            if tool.as_str().starts_with("BBox") {
-                // Create bbox annotation only if size is reasonable (at least 5 pixels)
-                if width >= 5.0 && height >= 5.0 {
-                    annotations_handle.push(Annotation {
-                        id: state.next_id,
-                        r#type: "bbox".into(),
-                        x: min_x,
-                        y: min_y,
-                        width,
-                        height,
-                        rotation: 0.0,
-                        selected: false,
-                        class,
-                        state: "Manual".into(),
-                        vertices: "".into(),
-                        polygon_vertices: Default::default(),
-                        polygon_path_commands: "".into(),
-                    });
-                    state.next_id += 1;
-                }
-            } else if tool.as_str().starts_with("Point") {
-                // Create point annotation at click location (no minimum size)
-                annotations_handle.push(Annotation {
-                    id: state.next_id,
-                    r#type: "point".into(),
-                    x,
-                    y,
-                    width: 0.0,
-                    height: 0.0,
-                    rotation: 0.0,
-                    selected: false,
-                    class,
-                    state: "Manual".into(),
-                    vertices: "".into(),
-                    polygon_vertices: Default::default(),
-                    polygon_path_commands: "".into(),
-                });
-                state.next_id += 1;
-            }
-        }
-    });
-
-    let ui_handle = ui.as_weak();
-    ui.on_cancel_drawing(move || {
-        if let Some(ui) = ui_handle.upgrade() {
-            ui.set_show_preview(false);
-        }
-    });
+    // Drawing callbacks (extracted to callbacks/drawing.rs)
+    callbacks::drawing::setup_drawing_callbacks(
+        &ui,
+        draw_state.clone(),
+        annotations.clone(),
+        undo_history.clone(),
+    );
 
     // Delete annotation callback (for Q+click)
     let ui_handle = ui.as_weak();
