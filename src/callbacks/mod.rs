@@ -7,6 +7,8 @@
 //! - `annotation` - Annotation manipulation (delete, classify, undo, redo, copy, paste)
 //! - `polygon` - Polygon annotation creation
 //! - `resize` - Annotation resizing
+//! - `file_ops` - File operations (save, open, new, export)
+//! - `auto_resize` - Smart bbox auto-resize using edge detection
 
 pub mod navigation;
 pub mod selection;
@@ -14,3 +16,5 @@ pub mod drawing;
 pub mod annotation;
 pub mod polygon;
 pub mod resize;
+pub mod file_ops;
+pub mod auto_resize;
