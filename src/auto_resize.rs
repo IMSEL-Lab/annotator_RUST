@@ -1,4 +1,4 @@
-use image::{DynamicImage, GrayImage, ImageBuffer, Luma};
+use image::{GrayImage, ImageBuffer, Luma};
 use imageproc::filter::gaussian_blur_f32;
 use std::path::Path;
 

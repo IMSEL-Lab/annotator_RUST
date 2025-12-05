@@ -24,7 +24,9 @@ import { Icons } from "material/ui/icons/icons.slint";
 import { TopBar } from "components/top_bar.slint";
 import { SidePanel, ClassItem, HierarchyOption } from "components/side_panel.slint";
 import { BottomBar } from "components/bottom_bar.slint";
-import { SettingsDialog } from "components/dialogs/settings_dialog.slint";
+import { AppearanceDialog } from "components/dialogs/appearance_dialog.slint";
+import { LayoutDialog } from "components/dialogs/layout_dialog.slint";
+import { KeybindingsDialog } from "components/dialogs/keybindings_dialog.slint";
 import { AppTheme } from "app_theme.slint";
 
 // ============================================================================
@@ -172,6 +174,9 @@ export component AppWindow inherits Window {
     // ========================================================================
     in-out property <bool> sidebar-visible: true;
     in-out property <length> sidebar-width: 250px;
+    in-out property <bool> sidebar-left: true;
+    in-out property <float> topbar-height: 48;
+    in-out property <float> bottombar-height: 32;
 
     // ========================================================================
     // FRAME COMPLETION TRACKING
@@ -182,7 +187,9 @@ export component AppWindow inherits Window {
     // ========================================================================
     // SETTINGS DIALOG
     // ========================================================================
-    in-out property <bool> settings-dialog-visible: false;
+    in-out property <bool> appearance-dialog-visible: false;
+    in-out property <bool> layout-dialog-visible: false;
+    in-out property <bool> keybindings-dialog-visible: false;
     in-out property <bool> enable-points-setting: true;
     in-out property <bool> enable-bboxes-setting: true;
     in-out property <bool> enable-polygons-setting: true;
@@ -250,7 +257,9 @@ export component AppWindow inherits Window {
                 root.theme-setting = "light";
                 MaterialPalette.color-scheme = ColorScheme.light;
             }
-            tools-settings => { root.settings-dialog-visible = true; }
+            tools-appearance => { root.appearance-dialog-visible = true; }
+            tools-layout => { root.layout-dialog-visible = true; }
+            tools-keybindings => { root.keybindings-dialog-visible = true; }
 
             // Navigation callbacks connected to AppWindow handlers
             first-image => { root.first-image(); }
@@ -603,22 +612,21 @@ export component AppWindow inherits Window {
         }
     }
 
-    SettingsDialog {
-        show-dialog: root.settings-dialog-visible;
+    AppearanceDialog {
+        show-dialog: root.appearance-dialog-visible;
         theme-selection: root.theme-setting;
         enable-points: root.enable-points-setting;
         enable-bboxes: root.enable-bboxes-setting;
         enable-polygons: root.enable-polygons-setting;
         randomize-dataset: root.randomize-dataset-setting;
 
-        apply-settings => {
+        apply => {
             root.theme-setting = self.theme-selection;
             root.enable-points-setting = self.enable-points;
             root.enable-bboxes-setting = self.enable-bboxes;
             root.enable-polygons-setting = self.enable-polygons;
             root.randomize-dataset-setting = self.randomize-dataset;
 
-            // Force theme update
             if (root.theme-setting == "dark") {
                  MaterialPalette.color-scheme = ColorScheme.dark;
             } else {
@@ -632,27 +640,50 @@ export component AppWindow inherits Window {
                 root.enable-polygons-setting,
                 root.randomize-dataset-setting
             );
-            root.settings-dialog-visible = false;
+            root.appearance-dialog-visible = false;
         }
 
         reset-to-defaults => {
-            // Reset all settings to defaults
             self.theme-selection = "dark";
             self.text-size = 14;
             self.ui-scale = 100;
-            self.sidebar-width = 250;
-            self.topbar-height = 48;
-            self.bottombar-height = 32;
-            self.sidebar-left = true;
             self.enable-points = true;
             self.enable-bboxes = true;
             self.enable-polygons = true;
             self.randomize-dataset = false;
         }
 
-        cancel => {
-            root.settings-dialog-visible = false;
+        cancel => { root.appearance-dialog-visible = false; }
+    }
+
+    LayoutDialog {
+        show-dialog: root.layout-dialog-visible;
+        sidebar-width: root.sidebar-width / 1px;
+        topbar-height:  root.topbar-height;
+        bottombar-height: root.bottombar-height;
+        sidebar-left: root.sidebar-left;
+
+        apply => {
+            root.sidebar-width = self.sidebar-width * 1px;
+            root.topbar-height = self.topbar-height;
+            root.bottombar-height = self.bottombar-height;
+            root.sidebar-left = self.sidebar-left;
+            root.layout-dialog-visible = false;
         }
+
+        reset-to-defaults => {
+            self.sidebar-width = 250;
+            self.topbar-height = 48;
+            self.bottombar-height = 32;
+            self.sidebar-left = true;
+        }
+
+        cancel => { root.layout-dialog-visible = false; }
+    }
+
+    KeybindingsDialog {
+        show-dialog: root.keybindings-dialog-visible;
+        close => { root.keybindings-dialog-visible = false; }
     }
 
     reset-view => {

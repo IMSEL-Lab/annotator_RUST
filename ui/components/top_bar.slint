@@ -103,7 +103,9 @@ export component TopBar {
     // ========================================================================
     // TOOLS MENU CALLBACKS
     // ========================================================================
-    callback tools-settings();
+    callback tools-appearance();
+    callback tools-layout();
+    callback tools-keybindings();
 
     // ========================================================================
     // NAVIGATION CALLBACKS
@@ -386,7 +388,9 @@ export component TopBar {
         y: tools-menu-button.absolute-position.y + tools-menu-button.height;
 
         items: [
-            { text: "Settings...", enabled: true }
+            { text: "Appearance…", enabled: true },
+            { text: "Layout…", enabled: true },
+            { text: "Keybindings…", enabled: true },
         ];
 
         activated(index) => {
@@ -397,7 +401,9 @@ export component TopBar {
             root.tools-menu-open = false;
 
             // Handle menu action
-            if (index == 0) { root.tools-settings(); }
+            if (index == 0) { root.tools-appearance(); }
+            else if (index == 1) { root.tools-layout(); }
+            else if (index == 2) { root.tools-keybindings(); }
         }
     }
 }

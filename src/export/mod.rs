@@ -3,9 +3,8 @@
 pub mod coco;
 pub mod voc;
 
-use std::path::Path;
-
 /// Export format types
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportFormat {
     CocoJson,
@@ -13,12 +12,14 @@ pub enum ExportFormat {
 }
 
 /// Export result with statistics
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct ExportResult {
     pub images_exported: usize,
     pub annotations_exported: usize,
 }
 
+#[allow(dead_code)]
 impl ExportFormat {
     pub fn name(&self) -> &'static str {
         match self {
