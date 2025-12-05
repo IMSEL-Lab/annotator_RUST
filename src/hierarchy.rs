@@ -116,6 +116,7 @@ impl HierarchyNavigator {
     }
 
     /// Check if at root level
+    #[allow(dead_code)]
     pub fn is_at_root(&self) -> bool {
         self.path.is_empty()
     }
@@ -146,6 +147,7 @@ fn validate_and_get_depth(nodes: &[HierarchicalClassNode]) -> usize {
 }
 
 /// Validate that hierarchy meets constraints
+#[allow(dead_code)]
 pub fn validate_hierarchy(nodes: &[HierarchicalClassNode]) -> Result<(), String> {
     // Check root level has at most 5 nodes
     if nodes.len() > 5 {
@@ -164,6 +166,7 @@ pub fn validate_hierarchy(nodes: &[HierarchicalClassNode]) -> Result<(), String>
     Ok(())
 }
 
+#[allow(dead_code)]
 fn validate_hierarchy_recursive(nodes: &[HierarchicalClassNode], level: usize) -> Result<(), String> {
     if nodes.len() > 5 {
         return Err(format!("Level {} has {} nodes, max 5 allowed", level, nodes.len()));
@@ -185,6 +188,7 @@ fn validate_hierarchy_recursive(nodes: &[HierarchicalClassNode], level: usize) -
 }
 
 /// Count total leaf classes in hierarchy
+#[allow(dead_code)]
 pub fn count_leaf_classes(nodes: &[HierarchicalClassNode]) -> usize {
     let mut count = 0;
 
@@ -199,6 +203,7 @@ pub fn count_leaf_classes(nodes: &[HierarchicalClassNode]) -> usize {
 }
 
 /// Determine required hierarchy depth based on class count
+#[allow(dead_code)]
 pub fn required_hierarchy_depth(class_count: usize) -> Result<usize, String> {
     match class_count {
         0 => Err("No classes defined".to_string()),

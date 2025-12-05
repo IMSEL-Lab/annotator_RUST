@@ -10,13 +10,10 @@ mod utils;
 mod callbacks;
 
 use state::{
-    DatasetEntry, DatasetFile, DatasetFileEntry, DatasetState, DrawState, ResizeState,
-    StoredAnnotation, UndoHistory, ViewState,
-    // Functions
-    ann_to_stored, apply_view_state, create_dataset_from_folder, generate_path_commands,
-    get_view_state, label_path_for, load_dataset, load_image_from_entry, load_yolo_annotations,
-    next_id_from_annotations, parse_vertices, replace_annotations, save_all, save_current_state,
-    sizes_close, snapshot_annotations, state_path_for,
+    DatasetState, DrawState, ResizeState, UndoHistory, ViewState,
+    // Functions used in main.rs
+    apply_view_state, get_view_state, load_dataset, load_image_from_entry,
+    load_yolo_annotations, next_id_from_annotations, replace_annotations, sizes_close,
 };
 use utils::{parse_color, placeholder_image};
 

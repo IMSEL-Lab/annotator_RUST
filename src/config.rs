@@ -200,6 +200,7 @@ pub fn save_config(config: &AppConfig) -> Result<(), String> {
 }
 
 /// Add a dataset path to recent datasets list
+#[allow(dead_code)]
 pub fn add_recent_dataset(config: &mut AppConfig, path: String) {
     // Remove if already in list
     config.dataset.recent_datasets.retain(|p| p != &path);
