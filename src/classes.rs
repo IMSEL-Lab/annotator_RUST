@@ -168,6 +168,7 @@ pub fn get_class_name(config: &ClassConfig, class_id: i32) -> String {
 }
 
 /// Get class color by ID, or return None if not found
+#[allow(dead_code)]
 pub fn get_class_color(config: &ClassConfig, class_id: i32) -> Option<String> {
     config
         .classes
@@ -177,6 +178,7 @@ pub fn get_class_color(config: &ClassConfig, class_id: i32) -> Option<String> {
 }
 
 /// Save class configuration to YAML file
+#[allow(dead_code)]
 pub fn save_classes(config: &ClassConfig, path: &str) -> Result<(), String> {
     let expanded_path = shellexpand::tilde(path);
 
@@ -198,6 +200,7 @@ pub fn save_classes(config: &ClassConfig, path: &str) -> Result<(), String> {
 }
 
 /// Create a default classes.yaml file in the config directory
+#[allow(dead_code)]
 pub fn create_default_classes_file() -> Result<String, String> {
     let config_dir = directories::ProjectDirs::from("", "", "annotator")
         .expect("Failed to determine config directory")
