@@ -26,8 +26,8 @@ pub fn setup_file_callbacks(
 ) {
     setup_save_dataset(ui, dataset_state.clone(), annotations.clone(), image_dimensions.clone());
     setup_toggle_frame_completion(ui, dataset_state.clone());
-    setup_open_dataset(ui, loader.clone(), dataset_state.clone());
-    setup_new_dataset(ui, loader, dataset_state.clone());
+    setup_open_dataset(ui, loader.clone(), dataset_state.clone(), classes.clone());
+    setup_new_dataset(ui, loader, dataset_state.clone(), classes.clone());
     setup_export_coco(ui, dataset_state.clone(), classes.clone());
     setup_export_voc(ui, dataset_state.clone(), classes);
     setup_view_changed(ui, dataset_state.clone(), image_dimensions.clone());
@@ -79,6 +79,7 @@ fn setup_open_dataset(
     ui: &AppWindow,
     loader: ImageLoader,
     dataset_state: Rc<RefCell<Option<DatasetState>>>,
+    classes: Rc<RefCell<classes::ClassConfig>>,
 ) {
     let ui_weak = ui.as_weak();
     ui.on_open_dataset(move || {
@@ -95,6 +96,32 @@ fn setup_open_dataset(
                     state.stored_annotations = vec![None; len];
                     state.view_states = vec![None; len];
                     state.completed_frames = vec![false; len];
+
+                    // Use class configuration from dataset if available
+                    if let (Some(dataset_classes), Some(ui)) = (&state.class_config, ui_weak.upgrade()) {
+                        *classes.borrow_mut() = dataset_classes.clone();
+
+                        // Update class items in UI
+                        use crate::utils::parse_color;
+                        use crate::ClassItem;
+                        let class_items: Vec<ClassItem> = dataset_classes
+                            .classes
+                            .iter()
+                            .map(|c| ClassItem {
+                                id: c.id,
+                                name: c.name.clone().into(),
+                                color: c
+                                    .color
+                                    .as_ref()
+                                    .and_then(|hex| parse_color(hex))
+                                    .unwrap_or(slint::Color::from_rgb_u8(128, 128, 128))
+                                    .into(),
+                                shortcut: c.shortcut.clone().unwrap_or_default().into(),
+                            })
+                            .collect();
+                        ui.set_class_items(slint::ModelRc::new(slint::VecModel::from(class_items)));
+                    }
+
                     *dataset_state.borrow_mut() = Some(state);
 
                     loader(0);
@@ -117,6 +144,7 @@ fn setup_new_dataset(
     ui: &AppWindow,
     loader: ImageLoader,
     dataset_state: Rc<RefCell<Option<DatasetState>>>,
+    classes: Rc<RefCell<classes::ClassConfig>>,
 ) {
     let ui_weak = ui.as_weak();
     ui.on_new_dataset(move || {
@@ -125,33 +153,90 @@ fn setup_new_dataset(
             .pick_folder();
 
         if let Some(folder_path) = folder {
-            match create_dataset_from_folder(&folder_path) {
-                Ok(manifest_path) => match load_dataset(&manifest_path) {
+            // Check if manifest.json already exists in the folder
+            let manifest_path = folder_path.join("manifest.json");
+
+            if manifest_path.exists() {
+                // Load existing manifest
+                match load_dataset(&manifest_path) {
                     Ok(state) => {
                         let len = state.entries.len();
                         let mut state = state;
                         state.stored_annotations = vec![None; len];
                         state.view_states = vec![None; len];
                         state.completed_frames = vec![false; len];
+
+                        // Use class configuration from dataset if available
+                        if let (Some(dataset_classes), Some(ui)) = (&state.class_config, ui_weak.upgrade()) {
+                            *classes.borrow_mut() = dataset_classes.clone();
+
+                            // Update class items in UI
+                            use crate::utils::parse_color;
+                            use crate::ClassItem;
+                            let class_items: Vec<ClassItem> = dataset_classes
+                                .classes
+                                .iter()
+                                .map(|c| ClassItem {
+                                    id: c.id,
+                                    name: c.name.clone().into(),
+                                    color: c
+                                        .color
+                                        .as_ref()
+                                        .and_then(|hex| parse_color(hex))
+                                        .unwrap_or(slint::Color::from_rgb_u8(128, 128, 128))
+                                        .into(),
+                                    shortcut: c.shortcut.clone().unwrap_or_default().into(),
+                                })
+                                .collect();
+                            ui.set_class_items(slint::ModelRc::new(slint::VecModel::from(class_items)));
+                        }
+
                         *dataset_state.borrow_mut() = Some(state);
 
                         loader(0);
 
                         if let Some(ui) = ui_weak.upgrade() {
                             ui.set_status_text(
-                                format!("Created new dataset with {} images", len).into(),
+                                format!("Loaded existing dataset with {} images", len).into(),
                             );
                         }
                     }
                     Err(e) => {
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_status_text(format!("Failed to load new dataset: {e}").into());
+                            ui.set_status_text(format!("Failed to load existing dataset: {e}").into());
                         }
                     }
-                },
-                Err(e) => {
-                    if let Some(ui) = ui_weak.upgrade() {
-                        ui.set_status_text(format!("Failed to create dataset: {e}").into());
+                }
+            } else {
+                // Create new manifest with current class configuration
+                match create_dataset_from_folder(&folder_path, Some(&classes.borrow())) {
+                    Ok(manifest_path) => match load_dataset(&manifest_path) {
+                        Ok(state) => {
+                            let len = state.entries.len();
+                            let mut state = state;
+                            state.stored_annotations = vec![None; len];
+                            state.view_states = vec![None; len];
+                            state.completed_frames = vec![false; len];
+                            *dataset_state.borrow_mut() = Some(state);
+
+                            loader(0);
+
+                            if let Some(ui) = ui_weak.upgrade() {
+                                ui.set_status_text(
+                                    format!("Created new dataset with {} images", len).into(),
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            if let Some(ui) = ui_weak.upgrade() {
+                                ui.set_status_text(format!("Failed to load new dataset: {e}").into());
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        if let Some(ui) = ui_weak.upgrade() {
+                            ui.set_status_text(format!("Failed to create dataset: {e}").into());
+                        }
                     }
                 }
             }
