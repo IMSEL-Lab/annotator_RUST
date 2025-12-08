@@ -17,6 +17,10 @@ pub struct DatasetFileEntry {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DatasetFile {
     pub images: Vec<DatasetFileEntry>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub classes: Option<Vec<crate::classes::ClassDefinition>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hierarchy: Vec<crate::classes::HierarchicalClassNode>,
 }
 
 /// A single dataset entry with resolved paths
@@ -61,6 +65,7 @@ pub struct DatasetState {
     pub global_view: Option<ViewState>,
     pub last_view_image_size: Option<(f32, f32)>,
     pub completed_frames: Vec<bool>,
+    pub class_config: Option<crate::classes::ClassConfig>,
 }
 
 /// State for drawing operations (bbox, point creation)

@@ -269,6 +269,31 @@ fn main() -> Result<(), slint::PlatformError> {
                 state.stored_annotations = vec![None; len];
                 state.view_states = vec![None; len];
                 state.completed_frames = vec![false; len];
+
+                // Use class configuration from dataset if available
+                if let Some(dataset_classes) = &state.class_config {
+                    *classes.borrow_mut() = dataset_classes.clone();
+                    println!("Loaded class configuration from dataset manifest");
+
+                    // Update class items in UI
+                    let class_items: Vec<ClassItem> = dataset_classes
+                        .classes
+                        .iter()
+                        .map(|c| ClassItem {
+                            id: c.id,
+                            name: c.name.clone().into(),
+                            color: c
+                                .color
+                                .as_ref()
+                                .and_then(|hex| parse_color(hex))
+                                .unwrap_or(slint::Color::from_rgb_u8(128, 128, 128))
+                                .into(),
+                            shortcut: c.shortcut.clone().unwrap_or_default().into(),
+                        })
+                        .collect();
+                    ui.set_class_items(slint::ModelRc::new(slint::VecModel::from(class_items)));
+                }
+
                 *dataset_state.borrow_mut() = Some(state);
             }
             Err(e) => {

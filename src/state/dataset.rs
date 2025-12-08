@@ -29,6 +29,19 @@ pub fn load_dataset(path: &Path) -> Result<DatasetState, String> {
         return Err("Dataset has no images".into());
     }
 
+    // Build ClassConfig from manifest if present
+    let class_config = if parsed.classes.is_some() || !parsed.hierarchy.is_empty() {
+        let classes = parsed.classes.unwrap_or_else(|| {
+            crate::classes::flatten_hierarchy(&parsed.hierarchy)
+        });
+        Some(crate::classes::ClassConfig {
+            classes,
+            hierarchy: parsed.hierarchy,
+        })
+    } else {
+        None
+    };
+
     Ok(DatasetState {
         entries,
         current_index: 0,
@@ -37,11 +50,15 @@ pub fn load_dataset(path: &Path) -> Result<DatasetState, String> {
         global_view: None,
         last_view_image_size: None,
         completed_frames: Vec::new(),
+        class_config,
     })
 }
 
 /// Create a new dataset manifest from a folder of images
-pub fn create_dataset_from_folder(folder: &Path) -> Result<PathBuf, String> {
+pub fn create_dataset_from_folder(
+    folder: &Path,
+    class_config: Option<&crate::classes::ClassConfig>,
+) -> Result<PathBuf, String> {
     // Scan folder for image files
     let extensions = ["png", "jpg", "jpeg", "bmp", "gif"];
     let mut image_files = Vec::new();
@@ -89,6 +106,8 @@ pub fn create_dataset_from_folder(folder: &Path) -> Result<PathBuf, String> {
 
     let manifest = DatasetFile {
         images: manifest_entries,
+        classes: class_config.map(|cfg| cfg.classes.clone()),
+        hierarchy: class_config.map(|cfg| cfg.hierarchy.clone()).unwrap_or_default(),
     };
 
     // Save manifest.json in the folder
